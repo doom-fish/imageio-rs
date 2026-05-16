@@ -19,12 +19,16 @@ pub mod ffi;
 pub mod image;
 
 pub use error::ImageError;
-pub use image::{convert_format, decode_bgra, read_metadata, DecodedImage, ImageFormat, ImageMetadata};
+pub use image::{
+    convert_format, decode_bgra, decode_bgra_from_bytes, encode_bgra_to_bytes, read_metadata,
+    DecodedImage, ImageFormat, ImageMetadata,
+};
 
 /// Common imports.
 pub mod prelude {
     pub use crate::error::ImageError;
     pub use crate::image::{
-        convert_format, decode_bgra, read_metadata, DecodedImage, ImageFormat, ImageMetadata,
+        convert_format, decode_bgra, decode_bgra_from_bytes, encode_bgra_to_bytes,
+        read_metadata, DecodedImage, ImageFormat, ImageMetadata,
     };
 }

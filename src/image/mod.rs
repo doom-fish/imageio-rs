@@ -230,6 +230,178 @@ pub fn convert_format(
     Ok(())
 }
 
+/// Decode an image already in memory (no file I/O) into a 32-bpp
+/// BGRA buffer with premultiplied alpha.
+///
+/// `data` may be PNG, JPEG, HEIC, TIFF, GIF, BMP, or any other format
+/// `ImageIO` supports.
+///
+/// # Errors
+///
+/// See [`ImageError`].
+pub fn decode_bgra_from_bytes(data: &[u8]) -> Result<DecodedImage, ImageError> {
+    let cfdata = unsafe {
+        ffi::CFDataCreate(
+            ffi::kCFAllocatorDefault,
+            data.as_ptr(),
+            ffi::CFIndex::try_from(data.len()).unwrap_or(0),
+        )
+    };
+    if cfdata.is_null() {
+        return Err(ImageError::OpenSourceFailed(
+            "CFDataCreate returned NULL".into(),
+        ));
+    }
+    let src = unsafe { ffi::CGImageSourceCreateWithData(cfdata, ptr::null()) };
+    unsafe { ffi::CFRelease(cfdata) };
+    if src.is_null() {
+        return Err(ImageError::OpenSourceFailed(
+            "CGImageSourceCreateWithData returned NULL".into(),
+        ));
+    }
+    if unsafe { ffi::CGImageSourceGetCount(src) } == 0 {
+        unsafe { ffi::CFRelease(src.cast_const()) };
+        return Err(ImageError::NoImagesInSource);
+    }
+    let cg_image = unsafe { ffi::CGImageSourceCreateImageAtIndex(src, 0, ptr::null()) };
+    unsafe { ffi::CFRelease(src.cast_const()) };
+    if cg_image.is_null() {
+        return Err(ImageError::DecodeFailed(
+            "CGImageSourceCreateImageAtIndex returned NULL".into(),
+        ));
+    }
+    let result = cg_image_to_bgra(cg_image);
+    unsafe { ffi::CGImageRelease(cg_image) };
+    result
+}
+
+/// Encode raw BGRA bytes (premultiplied alpha) to an in-memory
+/// byte buffer in the requested `format`.
+///
+/// # Errors
+///
+/// See [`ImageError`].
+pub fn encode_bgra_to_bytes(
+    bgra: &[u8],
+    width: usize,
+    height: usize,
+    format: ImageFormat,
+) -> Result<Vec<u8>, ImageError> {
+    if bgra.len() < width * height * 4 {
+        return Err(ImageError::InvalidPath(format!(
+            "buffer too small for {width}x{height} BGRA"
+        )));
+    }
+    // Build a CGImage from the buffer.
+    let cs = unsafe { ffi::CGColorSpaceCreateDeviceRGB() };
+    let ctx = unsafe {
+        ffi::CGBitmapContextCreate(
+            bgra.as_ptr().cast::<core::ffi::c_void>().cast_mut(),
+            width,
+            height,
+            8,
+            width * 4,
+            cs,
+            ffi::kCGImageAlphaPremultipliedLast | ffi::kCGBitmapByteOrder32Big,
+        )
+    };
+    unsafe { ffi::CGColorSpaceRelease(cs) };
+    if ctx.is_null() {
+        return Err(ImageError::EncodeFailed(
+            "CGBitmapContextCreate returned NULL".into(),
+        ));
+    }
+    let cg_image = unsafe { ffi::CGBitmapContextCreateImage(ctx) };
+    unsafe { ffi::CGContextRelease(ctx) };
+    if cg_image.is_null() {
+        return Err(ImageError::EncodeFailed(
+            "CGBitmapContextCreateImage returned NULL".into(),
+        ));
+    }
+
+    let cfdata = unsafe { ffi::CFDataCreateMutable(ffi::kCFAllocatorDefault, 0) };
+    let uti = make_cf_string(format.as_uti())?;
+    let dst = unsafe { ffi::CGImageDestinationCreateWithData(cfdata, uti, 1, ptr::null()) };
+    unsafe { ffi::CFRelease(uti) };
+    if dst.is_null() {
+        unsafe { ffi::CFRelease(cfdata) };
+        unsafe { ffi::CGImageRelease(cg_image) };
+        return Err(ImageError::EncodeFailed(
+            "CGImageDestinationCreateWithData returned NULL".into(),
+        ));
+    }
+    unsafe { ffi::CGImageDestinationAddImage(dst, cg_image, ptr::null()) };
+    let ok = unsafe { ffi::CGImageDestinationFinalize(dst) };
+    unsafe { ffi::CFRelease(dst.cast_const()) };
+    unsafe { ffi::CGImageRelease(cg_image) };
+    if !ok {
+        unsafe { ffi::CFRelease(cfdata) };
+        return Err(ImageError::EncodeFailed(
+            "CGImageDestinationFinalize returned false".into(),
+        ));
+    }
+
+    let len = unsafe { ffi::CFDataGetLength(cfdata) };
+    let len_usize = usize::try_from(len).unwrap_or(0);
+    let mut buf = vec![0u8; len_usize];
+    if len_usize > 0 {
+        unsafe {
+            ffi::CFDataGetBytes(
+                cfdata,
+                ffi::CFRange {
+                    location: 0,
+                    length: len,
+                },
+                buf.as_mut_ptr(),
+            );
+        }
+    }
+    unsafe { ffi::CFRelease(cfdata) };
+    Ok(buf)
+}
+
+fn cg_image_to_bgra(cg_image: ffi::CGImageRef) -> Result<DecodedImage, ImageError> {
+    let width = unsafe { ffi::CGImageGetWidth(cg_image) };
+    let height = unsafe { ffi::CGImageGetHeight(cg_image) };
+    let bytes_per_row = width * 4;
+    let mut bgra = vec![0u8; bytes_per_row * height];
+
+    let cs = unsafe { ffi::CGColorSpaceCreateDeviceRGB() };
+    let ctx = unsafe {
+        ffi::CGBitmapContextCreate(
+            bgra.as_mut_ptr().cast(),
+            width,
+            height,
+            8,
+            bytes_per_row,
+            cs,
+            ffi::kCGImageAlphaPremultipliedLast | ffi::kCGBitmapByteOrder32Big,
+        )
+    };
+    unsafe { ffi::CGColorSpaceRelease(cs) };
+    if ctx.is_null() {
+        return Err(ImageError::DecodeFailed(
+            "CGBitmapContextCreate returned NULL".into(),
+        ));
+    }
+    let rect = ffi::CGRect {
+        origin: ffi::CGPoint { x: 0.0, y: 0.0 },
+        size: ffi::CGSize {
+            #[allow(clippy::cast_precision_loss)]
+            width: width as f64,
+            #[allow(clippy::cast_precision_loss)]
+            height: height as f64,
+        },
+    };
+    unsafe { ffi::CGContextDrawImage(ctx, rect, cg_image) };
+    unsafe { ffi::CGContextRelease(ctx) };
+    Ok(DecodedImage {
+        width,
+        height,
+        bgra,
+    })
+}
+
 // ---- internal helpers ----
 
 fn make_file_url(path: &Path) -> Result<ffi::CFURLRef, ImageError> {

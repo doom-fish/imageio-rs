@@ -56,6 +56,7 @@ extern "C" {
         is_dir: bool,
     ) -> CFURLRef;
     pub fn CFDataCreateMutable(alloc: CFAllocatorRef, capacity: CFIndex) -> CFMutableDataRef;
+    pub fn CFDataCreate(alloc: CFAllocatorRef, bytes: *const u8, length: CFIndex) -> CFDataRef;
     pub fn CFDataGetLength(data: CFDataRef) -> CFIndex;
     pub fn CFDataGetBytes(data: CFDataRef, range: CFRange, buffer: *mut u8);
     pub fn CFDictionaryGetValue(d: CFDictionaryRef, key: *const c_void) -> *const c_void;
@@ -136,6 +137,7 @@ extern "C" {
     ) -> CGContextRef;
     pub fn CGContextDrawImage(c: CGContextRef, rect: CGRect, image: CGImageRef);
     pub fn CGContextRelease(c: CGContextRef);
+    pub fn CGBitmapContextCreateImage(context: CGContextRef) -> CGImageRef;
 
     pub fn CGDataProviderCreateWithData(
         info: *mut c_void,
