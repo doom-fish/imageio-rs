@@ -36,6 +36,36 @@ impl From<i32> for MetadataType {
     }
 }
 
+/// Options for [`Metadata::enumerate_tags_with_options`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MetadataEnumerateOptions {
+    pub recursive: bool,
+}
+
+impl MetadataEnumerateOptions {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { recursive: false }
+    }
+
+    #[must_use]
+    pub const fn recursive() -> Self {
+        Self { recursive: true }
+    }
+
+    #[must_use]
+    pub const fn with_recursive(mut self, recursive: bool) -> Self {
+        self.recursive = recursive;
+        self
+    }
+}
+
+impl Default for MetadataEnumerateOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Immutable metadata tree.
 #[derive(Debug)]
 pub struct Metadata {
@@ -49,6 +79,12 @@ impl Metadata {
 
     pub(crate) const fn as_raw(&self) -> Handle {
         self.raw
+    }
+
+    #[must_use]
+    pub fn error_domain() -> String {
+        bridge::copy_string(unsafe { ffi::imageio_metadata_error_domain() })
+            .unwrap_or_else(|| "kCFErrorDomainCGImageMetadata".into())
     }
 
     pub fn from_xmp_data(data: &[u8]) -> Result<Self, ImageError> {
@@ -119,9 +155,17 @@ impl Metadata {
         Ok(bridge::copy_string(raw))
     }
 
-    pub fn enumerate_tags<F>(
+    pub fn enumerate_tags<F>(&self, root_path: Option<&str>, callback: F) -> Result<(), ImageError>
+    where
+        F: FnMut(String, MetadataTag) -> bool,
+    {
+        self.enumerate_tags_with_options(root_path, MetadataEnumerateOptions::default(), callback)
+    }
+
+    pub fn enumerate_tags_with_options<F>(
         &self,
         root_path: Option<&str>,
+        options: MetadataEnumerateOptions,
         callback: F,
     ) -> Result<(), ImageError>
     where
@@ -131,7 +175,11 @@ impl Metadata {
             callback: F,
         }
 
-        unsafe extern "C" fn trampoline<F>(path: Handle, tag: Handle, user_data: *mut c_void) -> bool
+        unsafe extern "C" fn trampoline<F>(
+            path: Handle,
+            tag: Handle,
+            user_data: *mut c_void,
+        ) -> bool
         where
             F: FnMut(String, MetadataTag) -> bool,
         {
@@ -148,7 +196,10 @@ impl Metadata {
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_metadata_enumerate_tags(
                 self.raw,
-                root_path.as_ref().map_or(std::ptr::null(), |path| path.as_ptr()),
+                root_path
+                    .as_ref()
+                    .map_or(std::ptr::null(), |path| path.as_ptr()),
+                options.recursive,
                 std::ptr::addr_of_mut!(state).cast::<c_void>(),
                 trampoline::<F>,
                 buffer,
@@ -250,7 +301,13 @@ impl MutableMetadata {
     pub fn set_tag_with_path(&mut self, path: &str, tag: &MetadataTag) -> Result<(), ImageError> {
         let path = bridge::cstring(path)?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_metadata_set_tag_with_path(self.raw, path.as_ptr(), tag.as_raw(), buffer, size)
+            ffi::imageio_metadata_set_tag_with_path(
+                self.raw,
+                path.as_ptr(),
+                tag.as_raw(),
+                buffer,
+                size,
+            )
         });
         if ok {
             Ok(())
@@ -263,7 +320,11 @@ impl MutableMetadata {
         }
     }
 
-    pub fn set_string_value_with_path(&mut self, path: &str, value: &str) -> Result<(), ImageError> {
+    pub fn set_string_value_with_path(
+        &mut self,
+        path: &str,
+        value: &str,
+    ) -> Result<(), ImageError> {
         let path = bridge::cstring(path)?;
         let value = bridge::cstring(value)?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -345,7 +406,9 @@ impl MetadataTag {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_metadata_tag_create_string(
                 xmlns.as_ptr(),
-                prefix.as_ref().map_or(std::ptr::null(), |value| value.as_ptr()),
+                prefix
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
                 name.as_ptr(),
                 value.as_ptr(),
                 buffer,
@@ -395,9 +458,9 @@ impl MetadataTag {
         let count = unsafe { ffi::imageio_metadata_tag_array_count(array) };
         let mut qualifiers = Vec::with_capacity(count);
         for index in 0..count {
-            if let Some(tag) = Self::from_raw(unsafe {
-                ffi::imageio_metadata_tag_array_copy_item(array, index)
-            }) {
+            if let Some(tag) =
+                Self::from_raw(unsafe { ffi::imageio_metadata_tag_array_copy_item(array, index) })
+            {
                 qualifiers.push(tag);
             }
         }

@@ -1,10 +1,10 @@
 # imageio coverage audit (vs MacOSX26.2.sdk)
 
 SDK_PUBLIC_SYMBOLS: 847
-VERIFIED: 844
-GAPS: 2
+VERIFIED: 846
+GAPS: 0
 EXEMPT: 1
-COVERAGE_PCT: 99.76%
+COVERAGE_PCT: 100.00%
 
 ## Audit scope
 
@@ -20,7 +20,7 @@ COVERAGE_PCT: 99.76%
 | Source | `ImageSource`, `SourceStatus`, `read_metadata`, `decode_bgra*`, `create_thumbnail` |
 | Destination | `ImageDestination`, `encode_bgra_to_bytes`, `convert_format`, `copy_image_source` |
 | Properties | `ImageProperties`, `MutableProperties` |
-| Metadata | `Metadata`, `MutableMetadata`, `MetadataTag`, `MetadataType` |
+| Metadata | `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, `MetadataTag`, `MetadataType` |
 | AuxiliaryData | `AuxiliaryDataInfo`, `AuxiliaryDataType` |
 | ColorSync | `DecodeRequest`, `EncodeRequest`, `profile_name`, `source_profile_name`, and encode/decode request helpers |
 | Animated image | `animate_image`, `animate_image_from_bytes`, `AnimatedPngBuilder` |
@@ -181,6 +181,8 @@ COVERAGE_PCT: 99.76%
 | `CGImageMetadataTagCreate` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagCreate` |
 | `CGImageMetadataTagGetType` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagGetType` |
 | `CGImageMetadataTagGetTypeID` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagGetTypeID` |
+| `kCFErrorDomainCGImageMetadata` | constant | `CGImageMetadata.h` | Metadata::error_domain / metadata helpers<br>`ffi::kCFErrorDomainCGImageMetadata` |
+| `kCGImageMetadataEnumerateRecursively` | constant | `CGImageMetadata.h` | MetadataEnumerateOptions::recursive / Metadata::enumerate_tags_with_options<br>`ffi::kCGImageMetadataEnumerateRecursively` |
 | `kCGImageMetadataNamespaceDublinCore` | constant | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataNamespaceDublinCore` |
 | `kCGImageMetadataNamespaceExif` | constant | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataNamespaceExif` |
 | `kCGImageMetadataNamespaceExifAux` | constant | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataNamespaceExifAux` |
@@ -879,10 +881,7 @@ COVERAGE_PCT: 99.76%
 
 ## 🔴 GAPS
 
-| Symbol | Kind | Header | Notes |
-| --- | --- | --- | --- |
-| `kCFErrorDomainCGImageMetadata` | constant | `CGImageMetadata.h` | Missing from `src/ffi/generated_constants.rs`; no safe equivalent is re-exported. |
-| `kCGImageMetadataEnumerateRecursively` | constant | `CGImageMetadata.h` | Missing from `src/ffi/generated_constants.rs`; safe `Metadata::enumerate_tags` does not expose the options constant either. |
+None.
 
 ## ⏭️ EXEMPT
 
@@ -892,6 +891,6 @@ COVERAGE_PCT: 99.76%
 
 ## Notes
 
-- `cargo test --features raw-ffi` currently stays green despite the two metadata gaps because `tests/api_coverage.rs` only matches constants shaped like `IMAGEIO_EXTERN const CFStringRef k...`; it misses the nullability-annotated `kCGImageMetadataEnumerateRecursively` declaration and the `kCFErrorDomainCGImageMetadata` error-domain constant.
+- `tests/api_coverage.rs` now matches nullability-annotated `CFStringRef` declarations, so `cargo test --all-features` covers both `kCGImageMetadataEnumerateRecursively` and `kCFErrorDomainCGImageMetadata`.
 - The lone exempt declaration (`kCGImagePropertyExifSubsecTimeOrginal`) is already present in `imageio::ffi`, but it remains excluded from the score because the SDK marks it deprecated on macOS 10.x.
 

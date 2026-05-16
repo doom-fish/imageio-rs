@@ -81,6 +81,8 @@ unsafe extern "C" {
     pub static kCGImageMetadataPrefixTIFF: CFStringRef;
     pub static kCGImageMetadataPrefixXMPBasic: CFStringRef;
     pub static kCGImageMetadataPrefixXMPRights: CFStringRef;
+    pub static kCGImageMetadataEnumerateRecursively: CFStringRef;
+    pub static kCFErrorDomainCGImageMetadata: CFStringRef;
 
     // CGImageProperties.h
     pub static kCGImagePropertyTIFFDictionary: CFStringRef;

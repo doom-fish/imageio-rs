@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** `imageio` `0.4.0` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
+> **Status:** `imageio` `0.4.1` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
 >
 > - the default build compiles a tiny SwiftPM bridge from `swift-bridge/`
 > - ergonomic safe modules cover Source, Destination, Properties, Metadata, AuxiliaryData, ColorSync, AnimatedPNG, HEIF, `ProRAW`, and Thumbnail workflows
@@ -40,7 +40,7 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 - `ImageSource` + `SourceStatus` for file/data/incremental sources
 - `ImageDestination` for file/data encodes, metadata, and auxiliary data
 - `ImageProperties` / `MutableProperties` plus typed APNG / HEIF / `ProRAW` / color helpers
-- `Metadata`, `MutableMetadata`, and `MetadataTag` for XMP workflows
+- `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, and `MetadataTag` for XMP workflows
 - `create_thumbnail`, `animate_image`, and `animate_image_from_bytes`
 
 ## Quick start

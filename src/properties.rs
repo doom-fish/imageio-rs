@@ -95,7 +95,9 @@ impl MutableProperties {
     pub fn set_string(&mut self, key: &str, value: &str) -> Result<(), ImageError> {
         let key = bridge::cstring(key)?;
         let value = bridge::cstring(value)?;
-        unsafe { ffi::imageio_mutable_properties_set_string(self.raw, key.as_ptr(), value.as_ptr()) };
+        unsafe {
+            ffi::imageio_mutable_properties_set_string(self.raw, key.as_ptr(), value.as_ptr());
+        }
         Ok(())
     }
 
@@ -119,7 +121,9 @@ impl MutableProperties {
 
     pub fn set_dictionary(&mut self, key: &str, value: &ImageProperties) -> Result<(), ImageError> {
         let key = bridge::cstring(key)?;
-        unsafe { ffi::imageio_mutable_properties_set_dictionary(self.raw, key.as_ptr(), value.as_raw()) };
+        unsafe {
+            ffi::imageio_mutable_properties_set_dictionary(self.raw, key.as_ptr(), value.as_raw());
+        }
         Ok(())
     }
 

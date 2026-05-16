@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1] - 2026-05-16
+
+### Added
+
+- Safe metadata coverage for `kCFErrorDomainCGImageMetadata` via `Metadata::error_domain()`.
+- Recursive metadata tag traversal via `MetadataEnumerateOptions` and `Metadata::enumerate_tags_with_options()`.
+- Raw `imageio::ffi` exports for `kCFErrorDomainCGImageMetadata` and `kCGImageMetadataEnumerateRecursively`.
+
+### Changed
+
+- The metadata example and metadata tests now exercise recursive tag enumeration.
+- The raw-header coverage harness now matches nullability-annotated `CFStringRef` constants in `CGImageMetadata.h`.
+
 ## [0.4.0] - 2026-05-16
 
 ### Added

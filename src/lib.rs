@@ -35,7 +35,9 @@ pub use image::{
     convert_format, copy_image_source, decode_bgra, decode_bgra_from_bytes, encode_bgra_to_bytes,
     read_metadata, DecodedImage, ImageFormat, ImageMetadata,
 };
-pub use metadata::{Metadata, MetadataTag, MetadataType, MutableMetadata};
+pub use metadata::{
+    Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
+};
 pub use properties::{ImageProperties, MutableProperties};
 pub use proraw::{ProRawBuilder, ProRawProperties};
 pub use source::{ImageSource, SourceStatus};
@@ -54,7 +56,9 @@ pub mod prelude {
         convert_format, copy_image_source, decode_bgra, decode_bgra_from_bytes,
         encode_bgra_to_bytes, read_metadata, DecodedImage, ImageFormat, ImageMetadata,
     };
-    pub use crate::metadata::{Metadata, MetadataTag, MetadataType, MutableMetadata};
+    pub use crate::metadata::{
+        Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
+    };
     pub use crate::properties::{ImageProperties, MutableProperties};
     pub use crate::proraw::{ProRawBuilder, ProRawProperties};
     pub use crate::source::{ImageSource, SourceStatus};

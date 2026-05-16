@@ -1,6 +1,6 @@
 # COVERAGE
 
-Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers` for `imageio` `0.4.0`.
+Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers` for `imageio` `0.4.1`.
 
 Legend: `✅ implemented`, `🟡 partial`, `⏭️ skipped`.
 

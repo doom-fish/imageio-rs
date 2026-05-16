@@ -51,7 +51,10 @@ fn extract_header_functions(source: &str) -> BTreeSet<String> {
 }
 
 fn extract_header_constants(source: &str) -> BTreeSet<String> {
-    let re = regex_lite::Regex::new(r"IMAGEIO_EXTERN\s+const\s+CFStringRef\s+(k[A-Za-z0-9_]+)").unwrap();
+    let re = regex_lite::Regex::new(
+        r"IMAGEIO_EXTERN\s+const\s+CFStringRef(?:\s+_[A-Za-z0-9]+)*\s+(k[A-Za-z0-9_]+)",
+    )
+    .unwrap();
     re.captures_iter(source)
         .map(|capture| capture[1].to_string())
         .collect()

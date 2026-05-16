@@ -1,6 +1,7 @@
 use super::common::Handle;
 
-pub type MetadataEnumerateCallback = unsafe extern "C" fn(Handle, Handle, *mut std::ffi::c_void) -> bool;
+pub type MetadataEnumerateCallback =
+    unsafe extern "C" fn(Handle, Handle, *mut std::ffi::c_void) -> bool;
 
 unsafe extern "C" {
     pub fn imageio_metadata_create_from_xmp_data(
@@ -42,11 +43,13 @@ unsafe extern "C" {
     pub fn imageio_metadata_enumerate_tags(
         raw: Handle,
         root_path: *const i8,
+        recursive: bool,
         user_data: *mut std::ffi::c_void,
         callback: MetadataEnumerateCallback,
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> bool;
+    pub fn imageio_metadata_error_domain() -> Handle;
     pub fn imageio_metadata_register_namespace_for_prefix(
         raw: Handle,
         xmlns: *const i8,

@@ -147,6 +147,7 @@ public func imageioMetadataCopyStringValueWithPath(
 func imageioMetadataEnumerateTags(
     _ raw: UnsafeMutableRawPointer?,
     _ rootPath: UnsafePointer<CChar>?,
+    _ recursive: Bool,
     _ userData: UnsafeMutableRawPointer?,
     _ callback: MetadataEnumerateCallback?,
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
@@ -158,12 +159,23 @@ func imageioMetadataEnumerateTags(
     }
     let metadata = unretainedBox(raw, as: CGImageMetadata.self).value
     let root = rootPath.map { String(cString: $0) as CFString }
-    CGImageMetadataEnumerateTagsUsingBlock(metadata, root, nil) { path, tag in
+    let options: CFDictionary?
+    if recursive {
+        options = [kCGImageMetadataEnumerateRecursively: kCFBooleanTrue] as CFDictionary
+    } else {
+        options = nil
+    }
+    CGImageMetadataEnumerateTagsUsingBlock(metadata, root, options) { path, tag in
         let pathHandle = retainBox(path as String)
         let tagHandle = retainBox(tag)
         return callback(pathHandle, tagHandle, userData)
     }
     return true
+}
+
+@_cdecl("imageio_metadata_error_domain")
+public func imageioMetadataErrorDomain() -> UnsafeMutableRawPointer? {
+    retainBox(kCFErrorDomainCGImageMetadata as String)
 }
 
 @_cdecl("imageio_metadata_register_namespace_for_prefix")
