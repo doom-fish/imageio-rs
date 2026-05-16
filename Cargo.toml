@@ -1,11 +1,11 @@
 [package]
 name = "imageio"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
 repository = "https://github.com/doom-fish/imageio-rs"
-description = "Safe Rust bindings for Apple's ImageIO framework — read/write PNG, JPEG, HEIC, TIFF, GIF, RAW images on macOS"
+description = "Safe Rust bindings for Apple's ImageIO framework — full public header coverage with metadata, animation, incremental sources, and BGRA decode on macOS"
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["image", "png", "jpeg", "heic", "macos"]
 categories = ["api-bindings", "os::macos-apis", "multimedia::images"]
@@ -14,6 +14,8 @@ readme = "README.md"
 build = "build.rs"
 include = [
     "src/**/*",
+    "examples/**/*",
+    "tests/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",
@@ -33,6 +35,8 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
+block2 = "0.5.1"
+objc2 = "0.5.2"
 
 [dev-dependencies]
 regex-lite = "0.1"
@@ -58,3 +62,15 @@ strip = "none"
 
 [[example]]
 name = "02_data_round_trip"
+
+[[example]]
+name = "03_incremental_source"
+
+[[example]]
+name = "04_metadata"
+
+[[example]]
+name = "05_animation"
+
+[[example]]
+name = "06_copy_image_source"

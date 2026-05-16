@@ -3,27 +3,39 @@
 //!
 //! Run: `cargo run --example 01_read_image`
 
+use imageio::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
-use imageio::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let png: PathBuf = "/tmp/imageio_smoke.png".into();
+    let out_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/example-output");
+    std::fs::create_dir_all(&out_dir)?;
+    let png = out_dir.join("imageio_smoke.png");
     let _ = std::fs::remove_file(&png);
 
     println!("== Step 1: synthesise a 256x256 test PNG via sips ==");
-    // sips can convert from any system image. Use the standard system
-    // icon as a source.
     let src = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/AlertNoteIcon.icns";
     let status = Command::new("sips")
-        .args(["-s", "format", "png", "-Z", "256", src, "--out", png.to_str().unwrap()])
+        .args([
+            "-s",
+            "format",
+            "png",
+            "-Z",
+            "256",
+            src,
+            "--out",
+            png.to_str().unwrap(),
+        ])
         .output()?;
     if !status.status.success() {
         eprintln!("sips stderr: {}", String::from_utf8_lossy(&status.stderr));
         return Err("sips failed".into());
     }
-    println!("synthesised {} ({} bytes)",
-        png.display(), std::fs::metadata(&png)?.len());
+    println!(
+        "synthesised {} ({} bytes)",
+        png.display(),
+        std::fs::metadata(&png)?.len()
+    );
 
     println!("\n== Step 2: read metadata ==");
     let meta = read_metadata(&png)?;
@@ -35,8 +47,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n== Step 3: decode pixels ==");
     let img = decode_bgra(&png)?;
-    println!("  decoded {} bytes ({}x{}, {} bytes/row)",
-        img.bgra.len(), img.width, img.height, img.bytes_per_row());
+    println!(
+        "  decoded {} bytes ({}x{}, {} bytes/row)",
+        img.bgra.len(),
+        img.width,
+        img.height,
+        img.bytes_per_row()
+    );
     assert_eq!(img.bgra.len(), img.width * img.height * 4);
     println!("  OK pixel buffer length matches dimensions");
 

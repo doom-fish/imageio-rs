@@ -1,13 +1,15 @@
 //! High-level image read / write / convert API on top of `CGImageSource`
 //! and `CGImageDestination`.
 
-use core::ffi::{c_char, c_void};
 use core::ptr;
-use std::ffi::CString;
 use std::path::Path;
 
 use crate::error::ImageError;
 use crate::ffi;
+use crate::util::{
+    cf_data_to_vec, cf_error_description, cf_string_to_string, cg_image_to_bgra, make_cf_data,
+    make_cf_string, make_file_url, read_dict_int,
+};
 
 /// Output image format identifier (the same UTI strings `ImageIO` uses
 /// internally).
@@ -82,7 +84,9 @@ pub fn read_metadata(path: impl AsRef<Path>) -> Result<ImageMetadata, ImageError
     let src = unsafe { ffi::CGImageSourceCreateWithURL(url, ptr::null()) };
     unsafe { ffi::CFRelease(url) };
     if src.is_null() {
-        return Err(ImageError::OpenSourceFailed("CGImageSourceCreateWithURL returned NULL".into()));
+        return Err(ImageError::OpenSourceFailed(
+            "CGImageSourceCreateWithURL returned NULL".into(),
+        ));
     }
     let result = read_metadata_from_source(src);
     unsafe { ffi::CFRelease(src.cast_const()) };
@@ -103,7 +107,9 @@ fn read_metadata_from_source(src: ffi::CGImageSourceRef) -> Result<ImageMetadata
 
     let props = unsafe { ffi::CGImageSourceCopyPropertiesAtIndex(src, 0, ptr::null()) };
     if props.is_null() {
-        return Err(ImageError::DecodeFailed("CopyPropertiesAtIndex returned NULL".into()));
+        return Err(ImageError::DecodeFailed(
+            "CopyPropertiesAtIndex returned NULL".into(),
+        ));
     }
     let width = read_dict_int(props, unsafe { ffi::kCGImagePropertyPixelWidth }).unwrap_or(0);
     let height = read_dict_int(props, unsafe { ffi::kCGImagePropertyPixelHeight }).unwrap_or(0);
@@ -133,7 +139,9 @@ pub fn decode_bgra(path: impl AsRef<Path>) -> Result<DecodedImage, ImageError> {
     let src = unsafe { ffi::CGImageSourceCreateWithURL(url, ptr::null()) };
     unsafe { ffi::CFRelease(url) };
     if src.is_null() {
-        return Err(ImageError::OpenSourceFailed("CGImageSourceCreateWithURL returned NULL".into()));
+        return Err(ImageError::OpenSourceFailed(
+            "CGImageSourceCreateWithURL returned NULL".into(),
+        ));
     }
     if unsafe { ffi::CGImageSourceGetCount(src) } == 0 {
         unsafe { ffi::CFRelease(src.cast_const()) };
@@ -142,45 +150,14 @@ pub fn decode_bgra(path: impl AsRef<Path>) -> Result<DecodedImage, ImageError> {
     let cg_image = unsafe { ffi::CGImageSourceCreateImageAtIndex(src, 0, ptr::null()) };
     unsafe { ffi::CFRelease(src.cast_const()) };
     if cg_image.is_null() {
-        return Err(ImageError::DecodeFailed("CGImageSourceCreateImageAtIndex returned NULL".into()));
+        return Err(ImageError::DecodeFailed(
+            "CGImageSourceCreateImageAtIndex returned NULL".into(),
+        ));
     }
 
-    let width = unsafe { ffi::CGImageGetWidth(cg_image) };
-    let height = unsafe { ffi::CGImageGetHeight(cg_image) };
-    let bytes_per_row = width * 4;
-    let mut bgra = vec![0u8; bytes_per_row * height];
-
-    let cs = unsafe { ffi::CGColorSpaceCreateDeviceRGB() };
-    let ctx = unsafe {
-        ffi::CGBitmapContextCreate(
-            bgra.as_mut_ptr().cast(),
-            width,
-            height,
-            8,
-            bytes_per_row,
-            cs,
-            ffi::kCGImageAlphaPremultipliedLast | ffi::kCGBitmapByteOrder32Big,
-        )
-    };
-    unsafe { ffi::CGColorSpaceRelease(cs) };
-    if ctx.is_null() {
-        unsafe { ffi::CGImageRelease(cg_image) };
-        return Err(ImageError::DecodeFailed("CGBitmapContextCreate returned NULL".into()));
-    }
-    let rect = ffi::CGRect {
-        origin: ffi::CGPoint { x: 0.0, y: 0.0 },
-        size: ffi::CGSize {
-            #[allow(clippy::cast_precision_loss)]
-            width: width as f64,
-            #[allow(clippy::cast_precision_loss)]
-            height: height as f64,
-        },
-    };
-    unsafe { ffi::CGContextDrawImage(ctx, rect, cg_image) };
-    unsafe { ffi::CGContextRelease(ctx) };
+    let decoded = cg_image_to_bgra(cg_image);
     unsafe { ffi::CGImageRelease(cg_image) };
-
-    Ok(DecodedImage { width, height, bgra })
+    decoded
 }
 
 /// Convert an image file from any ImageIO-readable format to the requested
@@ -197,37 +174,122 @@ pub fn convert_format(
 ) -> Result<(), ImageError> {
     let in_url = make_file_url(input.as_ref())?;
     let src = unsafe { ffi::CGImageSourceCreateWithURL(in_url, ptr::null()) };
-    unsafe { ffi::CFRelease(in_url) };
+    unsafe { ffi::CFRelease(in_url.cast()) };
     if src.is_null() {
-        return Err(ImageError::OpenSourceFailed("CGImageSourceCreateWithURL returned NULL".into()));
+        return Err(ImageError::OpenSourceFailed(
+            "CGImageSourceCreateWithURL returned NULL".into(),
+        ));
     }
     if unsafe { ffi::CGImageSourceGetCount(src) } == 0 {
-        unsafe { ffi::CFRelease(src.cast_const()) };
+        unsafe { ffi::CFRelease(src.cast()) };
         return Err(ImageError::NoImagesInSource);
     }
     let cg_image = unsafe { ffi::CGImageSourceCreateImageAtIndex(src, 0, ptr::null()) };
-    unsafe { ffi::CFRelease(src.cast_const()) };
+    unsafe { ffi::CFRelease(src.cast()) };
     if cg_image.is_null() {
-        return Err(ImageError::DecodeFailed("CGImageSourceCreateImageAtIndex returned NULL".into()));
+        return Err(ImageError::DecodeFailed(
+            "CGImageSourceCreateImageAtIndex returned NULL".into(),
+        ));
     }
 
     let out_url = make_file_url(output.as_ref())?;
     let uti = make_cf_string(format.as_uti())?;
     let dst = unsafe { ffi::CGImageDestinationCreateWithURL(out_url, uti, 1, ptr::null()) };
-    unsafe { ffi::CFRelease(uti) };
-    unsafe { ffi::CFRelease(out_url) };
+    unsafe {
+        ffi::CFRelease(uti.cast());
+        ffi::CFRelease(out_url.cast());
+    }
     if dst.is_null() {
         unsafe { ffi::CGImageRelease(cg_image) };
-        return Err(ImageError::EncodeFailed("CGImageDestinationCreateWithURL returned NULL".into()));
+        return Err(ImageError::EncodeFailed(
+            "CGImageDestinationCreateWithURL returned NULL".into(),
+        ));
     }
     unsafe { ffi::CGImageDestinationAddImage(dst, cg_image, ptr::null()) };
     let ok = unsafe { ffi::CGImageDestinationFinalize(dst) };
-    unsafe { ffi::CFRelease(dst.cast_const()) };
-    unsafe { ffi::CGImageRelease(cg_image) };
+    unsafe {
+        ffi::CFRelease(dst.cast());
+        ffi::CGImageRelease(cg_image);
+    }
     if !ok {
-        return Err(ImageError::EncodeFailed("CGImageDestinationFinalize returned false".into()));
+        return Err(ImageError::EncodeFailed(
+            "CGImageDestinationFinalize returned false".into(),
+        ));
     }
     Ok(())
+}
+
+/// Copy an image source to a new destination without forcing a full decode.
+///
+/// When `format` is `None`, the source type is preserved.
+///
+/// # Errors
+///
+/// See [`ImageError`].
+pub fn copy_image_source(
+    input: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    format: Option<ImageFormat>,
+) -> Result<(), ImageError> {
+    let in_url = make_file_url(input.as_ref())?;
+    let src = unsafe { ffi::CGImageSourceCreateWithURL(in_url, ptr::null()) };
+    unsafe { ffi::CFRelease(in_url.cast()) };
+    if src.is_null() {
+        return Err(ImageError::OpenSourceFailed(
+            "CGImageSourceCreateWithURL returned NULL".into(),
+        ));
+    }
+    let count = unsafe { ffi::CGImageSourceGetCount(src) };
+    if count == 0 {
+        unsafe { ffi::CFRelease(src.cast()) };
+        return Err(ImageError::NoImagesInSource);
+    }
+
+    let (destination_type, release_destination_type) = if let Some(format) = format {
+        (make_cf_string(format.as_uti())?, true)
+    } else {
+        let ty = unsafe { ffi::CGImageSourceGetType(src) };
+        if ty.is_null() {
+            unsafe { ffi::CFRelease(src.cast()) };
+            return Err(ImageError::UnsupportedFormat(
+                "CGImageSourceGetType returned NULL".into(),
+            ));
+        }
+        (ty, false)
+    };
+
+    let out_url = make_file_url(output.as_ref())?;
+    let dst = unsafe {
+        ffi::CGImageDestinationCreateWithURL(out_url, destination_type, count, ptr::null())
+    };
+    unsafe { ffi::CFRelease(out_url.cast()) };
+    if release_destination_type {
+        unsafe { ffi::CFRelease(destination_type.cast()) };
+    }
+    if dst.is_null() {
+        unsafe { ffi::CFRelease(src.cast()) };
+        return Err(ImageError::EncodeFailed(
+            "CGImageDestinationCreateWithURL returned NULL".into(),
+        ));
+    }
+
+    let mut error: ffi::CFErrorRef = ptr::null();
+    let ok = unsafe {
+        ffi::CGImageDestinationCopyImageSource(dst, src, ptr::null(), ptr::from_mut(&mut error))
+    };
+    unsafe {
+        ffi::CFRelease(dst.cast());
+        ffi::CFRelease(src.cast());
+    }
+    if ok {
+        return Ok(());
+    }
+    let message = cf_error_description(error)
+        .unwrap_or_else(|| "CGImageDestinationCopyImageSource returned false".into());
+    if !error.is_null() {
+        unsafe { ffi::CFRelease(error.cast()) };
+    }
+    Err(ImageError::EncodeFailed(message))
 }
 
 /// Decode an image already in memory (no file I/O) into a 32-bpp
@@ -240,18 +302,7 @@ pub fn convert_format(
 ///
 /// See [`ImageError`].
 pub fn decode_bgra_from_bytes(data: &[u8]) -> Result<DecodedImage, ImageError> {
-    let cfdata = unsafe {
-        ffi::CFDataCreate(
-            ffi::kCFAllocatorDefault,
-            data.as_ptr(),
-            ffi::CFIndex::try_from(data.len()).unwrap_or(0),
-        )
-    };
-    if cfdata.is_null() {
-        return Err(ImageError::OpenSourceFailed(
-            "CFDataCreate returned NULL".into(),
-        ));
-    }
+    let cfdata = make_cf_data(data)?;
     let src = unsafe { ffi::CGImageSourceCreateWithData(cfdata, ptr::null()) };
     unsafe { ffi::CFRelease(cfdata) };
     if src.is_null() {
@@ -341,134 +392,7 @@ pub fn encode_bgra_to_bytes(
         ));
     }
 
-    let len = unsafe { ffi::CFDataGetLength(cfdata) };
-    let len_usize = usize::try_from(len).unwrap_or(0);
-    let mut buf = vec![0u8; len_usize];
-    if len_usize > 0 {
-        unsafe {
-            ffi::CFDataGetBytes(
-                cfdata,
-                ffi::CFRange {
-                    location: 0,
-                    length: len,
-                },
-                buf.as_mut_ptr(),
-            );
-        }
-    }
+    let buf = cf_data_to_vec(cfdata);
     unsafe { ffi::CFRelease(cfdata) };
     Ok(buf)
-}
-
-fn cg_image_to_bgra(cg_image: ffi::CGImageRef) -> Result<DecodedImage, ImageError> {
-    let width = unsafe { ffi::CGImageGetWidth(cg_image) };
-    let height = unsafe { ffi::CGImageGetHeight(cg_image) };
-    let bytes_per_row = width * 4;
-    let mut bgra = vec![0u8; bytes_per_row * height];
-
-    let cs = unsafe { ffi::CGColorSpaceCreateDeviceRGB() };
-    let ctx = unsafe {
-        ffi::CGBitmapContextCreate(
-            bgra.as_mut_ptr().cast(),
-            width,
-            height,
-            8,
-            bytes_per_row,
-            cs,
-            ffi::kCGImageAlphaPremultipliedLast | ffi::kCGBitmapByteOrder32Big,
-        )
-    };
-    unsafe { ffi::CGColorSpaceRelease(cs) };
-    if ctx.is_null() {
-        return Err(ImageError::DecodeFailed(
-            "CGBitmapContextCreate returned NULL".into(),
-        ));
-    }
-    let rect = ffi::CGRect {
-        origin: ffi::CGPoint { x: 0.0, y: 0.0 },
-        size: ffi::CGSize {
-            #[allow(clippy::cast_precision_loss)]
-            width: width as f64,
-            #[allow(clippy::cast_precision_loss)]
-            height: height as f64,
-        },
-    };
-    unsafe { ffi::CGContextDrawImage(ctx, rect, cg_image) };
-    unsafe { ffi::CGContextRelease(ctx) };
-    Ok(DecodedImage {
-        width,
-        height,
-        bgra,
-    })
-}
-
-// ---- internal helpers ----
-
-fn make_file_url(path: &Path) -> Result<ffi::CFURLRef, ImageError> {
-    let s = path
-        .to_str()
-        .ok_or_else(|| ImageError::InvalidPath("non-UTF-8 path".into()))?;
-    let bytes = s.as_bytes();
-    let url = unsafe {
-        ffi::CFURLCreateFromFileSystemRepresentation(
-            ffi::kCFAllocatorDefault,
-            bytes.as_ptr(),
-            ffi::CFIndex::try_from(bytes.len()).unwrap_or(0),
-            false,
-        )
-    };
-    if url.is_null() {
-        return Err(ImageError::InvalidPath(format!("CFURL creation failed for {s}")));
-    }
-    Ok(url)
-}
-
-fn make_cf_string(s: &str) -> Result<ffi::CFStringRef, ImageError> {
-    let c =
-        CString::new(s).map_err(|e| ImageError::Unknown(format!("CString: {e}")))?;
-    let cf = unsafe {
-        ffi::CFStringCreateWithCString(ffi::kCFAllocatorDefault, c.as_ptr(), ffi::kCFStringEncodingUTF8)
-    };
-    if cf.is_null() {
-        return Err(ImageError::Unknown("CFStringCreateWithCString returned NULL".into()));
-    }
-    Ok(cf)
-}
-
-fn cf_string_to_string(s: ffi::CFStringRef) -> Option<String> {
-    if s.is_null() {
-        return None;
-    }
-    let len = unsafe { ffi::CFStringGetLength(s) };
-    let cap = len * 4 + 1;
-    let mut buf = vec![0u8; usize::try_from(cap).unwrap_or(0)];
-    let ok = unsafe {
-        ffi::CFStringGetCString(
-            s,
-            buf.as_mut_ptr().cast::<c_char>(),
-            cap,
-            ffi::kCFStringEncodingUTF8,
-        )
-    };
-    if !ok {
-        return None;
-    }
-    if let Some(end) = buf.iter().position(|&b| b == 0) {
-        buf.truncate(end);
-    }
-    String::from_utf8(buf).ok()
-}
-
-fn read_dict_int(d: ffi::CFDictionaryRef, key: ffi::CFStringRef) -> Option<i64> {
-    let v = unsafe { ffi::CFDictionaryGetValue(d, key.cast()) };
-    if v.is_null() {
-        return None;
-    }
-    let mut out: i64 = 0;
-    let ok = unsafe { ffi::CFNumberGetValue(v, ffi::kCFNumberSInt64Type, ptr::from_mut(&mut out).cast::<c_void>()) };
-    if ok {
-        Some(out)
-    } else {
-        None
-    }
 }

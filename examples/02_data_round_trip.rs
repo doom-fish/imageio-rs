@@ -1,7 +1,6 @@
 use imageio::{decode_bgra_from_bytes, encode_bgra_to_bytes, ImageFormat};
 
 fn main() -> Result<(), imageio::ImageError> {
-    // Generate a 64x64 gradient as BGRA.
     let w = 64usize;
     let h = 64usize;
     let mut bgra = vec![0u8; w * h * 4];
@@ -20,8 +19,12 @@ fn main() -> Result<(), imageio::ImageError> {
     assert!(png.starts_with(&[0x89, b'P', b'N', b'G']));
 
     let decoded = decode_bgra_from_bytes(&png)?;
-    println!("decoded back: {}x{} ({} bytes BGRA)",
-        decoded.width, decoded.height, decoded.bgra.len());
+    println!(
+        "decoded back: {}x{} ({} bytes BGRA)",
+        decoded.width,
+        decoded.height,
+        decoded.bgra.len()
+    );
     assert_eq!(decoded.width, w);
     assert_eq!(decoded.height, h);
     Ok(())

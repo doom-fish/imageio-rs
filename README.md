@@ -1,59 +1,91 @@
 # imageio
 
-Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS — read, write, and convert images in any format the OS supports (PNG, JPEG, HEIC, TIFF, GIF, BMP, RAW, …).
+Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** experimental. v0.1 ships file-based read/write/convert plus tight BGRA decode. Animation frames, EXIF/IPTC metadata, write-side properties (compression quality, EXIF preservation) land in v0.2.
+> **Status:** `imageio` `0.3.0` covers the current public `ImageIO.framework` headers audited from the active macOS SDK:
+>
+> - `CGImageSource.h`
+> - `CGImageDestination.h`
+> - `CGImageAnimation.h`
+> - `CGImageMetadata.h`
+> - `CGImageProperties.h`
 
-ImageIO is pure C, so this crate is **zero-Swift** — just thin `extern "C"` declarations linked against the system frameworks.
+`ImageIO` is a pure C framework, so this crate stays **zero-Swift**. The full SDK surface is available through `imageio::ffi`, while the crate also layers safe Rust helpers for the most common workflows.
+
+## High-level API
+
+- `read_metadata(path)`
+- `decode_bgra(path)`
+- `decode_bgra_from_bytes(bytes)`
+- `encode_bgra_to_bytes(bgra, width, height, format)`
+- `convert_format(input, output, format)`
+- `copy_image_source(input, output, format)`
+- `ImageSource` + `SourceStatus` for file/data/incremental sources
+- `Metadata`, `MutableMetadata`, `MetadataTag` for `CGImageMetadata`
+- `animate_image` / `animate_image_from_bytes` for `CGImageAnimation`
 
 ## Quick start
 
 ```rust,no_run
 use imageio::prelude::*;
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Read metadata without decoding pixels (cheap).
-    let meta = read_metadata("/tmp/photo.heic")?;
-    println!("{}x{}, alpha={}, format={:?}",
-        meta.width, meta.height, meta.has_alpha, meta.source_format);
+    let output = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/example-output");
+    let input = output.join("photo.heic");
+    let png = output.join("photo.png");
 
-    // 2. Decode to tightly packed BGRA bytes (premultiplied alpha).
-    let img = decode_bgra("/tmp/photo.heic")?;
-    println!("decoded {} bytes ({}x{})", img.bgra.len(), img.width, img.height);
+    let meta = read_metadata(&input)?;
+    println!("{}x{}, alpha={}, format={:?}", meta.width, meta.height, meta.has_alpha, meta.source_format);
 
-    // 3. Convert format (HEIC → PNG).
-    convert_format("/tmp/photo.heic", "/tmp/photo.png", ImageFormat::Png)?;
+    let decoded = decode_bgra(&input)?;
+    println!("decoded {} bytes", decoded.bgra.len());
+
+    convert_format(&input, &png, ImageFormat::Png)?;
     Ok(())
 }
 ```
 
-## Supported formats
+## Lower-level examples
 
-Whatever `ImageIO` supports on the running macOS version — typically:
-PNG, JPEG, HEIC/HEIF, AVIF (macOS 13+), TIFF, GIF, BMP, ICNS, RAW (CR2, NEF, ARW, …), PSD (read-only), PDF (single-page rasterise).
+The shipped smoke examples exercise the safe wrappers and the raw framework paths end-to-end:
 
-## Pipeline composition
+- `01_read_image`
+- `02_convert_format`
+- `02_data_round_trip`
+- `03_incremental_source`
+- `04_metadata`
+- `05_animation`
+- `06_copy_image_source`
 
-```text
-imageio (load file) ──► DecodedImage(BGRA bytes)
-                              │
-                              ├─► apple-vision (OCR / face detection / barcodes)
-                              ├─► coreimage-rs (filters)
-                              └─► your own pipeline
+All examples write outputs under `target/example-output`.
+
+## Raw FFI
+
+For APIs that are not wrapped ergonomically yet, use `imageio::ffi`. The crate exposes the full audited function / constant / enum surface from the headers above, including:
+
+- `CGImageSource*`
+- `CGImageDestination*`
+- `CGAnimateImage*`
+- `CGImageMetadata*`
+- `kCGImageProperty*` / `kCGImageSource*` / `kCGImageDestination*` constants
+
+## Verification
+
+The crate is verified with:
+
+```bash
+cargo build --all-features
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test
+cargo run --example 01_read_image
+cargo run --example 02_convert_format
+cargo run --example 02_data_round_trip
+cargo run --example 03_incremental_source
+cargo run --example 04_metadata
+cargo run --example 05_animation
+cargo run --example 06_copy_image_source
 ```
-
-Pairs naturally with [`apple-vision`](https://github.com/doom-fish/vision-rs): replaces the ad-hoc Swift `CIImage(contentsOf:)` shim that crate ships with, so you can decode → preprocess → run Vision requests entirely in safe Rust.
-
-## Roadmap
-
-- [x] `read_metadata(path)` — width, height, frame count, alpha, format UTI
-- [x] `decode_bgra(path)` — pure pixel data
-- [x] `convert_format(in, out, format)` — file-to-file conversion
-- [ ] EXIF / IPTC / GPS metadata extraction
-- [ ] Multi-frame iteration (animated GIF, multi-page TIFF)
-- [ ] Write-side properties (compression quality, color profile preservation)
-- [ ] In-memory decode (`CFDataRef` sources)
-- [ ] Streaming `CGImageSource` for incremental network decode
 
 ## License
 
