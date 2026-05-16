@@ -1,8 +1,6 @@
-//! Header-driven coverage harness for `imageio`.
-//!
-//! `ImageIO` is a pure C framework, so the public API surface is the set of C
-//! functions, exported `CFStringRef` constants, and C enums declared in the SDK
-//! headers. These tests diff the active macOS SDK against our raw FFI module.
+#![cfg(feature = "raw-ffi")]
+
+//! Header-driven coverage harness for the optional raw `imageio::ffi` surface.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -44,18 +42,16 @@ fn read_rust_ffi() -> String {
 
 fn extract_header_functions(source: &str) -> BTreeSet<String> {
     let re = regex_lite::Regex::new(
-        r"\b(CG(?:AnimateImage|Image(?:Source|Destination|Metadata)[A-Za-z0-9_]+))\s*\(",
+        r"IMAGEIO_EXTERN[^;\n]*\b((?:CGAnimateImage[A-Za-z0-9_]+)|(?:CGImage(?:Source|Destination|Metadata)[A-Za-z0-9_]+))\s*\(",
     )
     .unwrap();
     re.captures_iter(source)
         .map(|capture| capture[1].to_string())
-        .filter(|name| !name.ends_with("Block") && !name.ends_with("Ref"))
         .collect()
 }
 
 fn extract_header_constants(source: &str) -> BTreeSet<String> {
-    let re =
-        regex_lite::Regex::new(r"IMAGEIO_EXTERN\s+const\s+CFStringRef\s+(k[A-Za-z0-9_]+)").unwrap();
+    let re = regex_lite::Regex::new(r"IMAGEIO_EXTERN\s+const\s+CFStringRef\s+(k[A-Za-z0-9_]+)").unwrap();
     re.captures_iter(source)
         .map(|capture| capture[1].to_string())
         .collect()
@@ -83,7 +79,7 @@ fn extract_header_enums(source: &str) -> BTreeMap<String, BTreeSet<String>> {
 
 fn extract_rust_functions(source: &str) -> BTreeSet<String> {
     let re = regex_lite::Regex::new(
-        r"pub\s+fn\s+(CG(?:AnimateImage|Image(?:Source|Destination|Metadata)[A-Za-z0-9_]+))\s*\(",
+        r"pub\s+fn\s+((?:CGAnimateImage[A-Za-z0-9_]+)|(?:CGImage(?:Source|Destination|Metadata)[A-Za-z0-9_]+))\s*\(",
     )
     .unwrap();
     re.captures_iter(source)

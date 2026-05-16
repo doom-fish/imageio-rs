@@ -2,17 +2,34 @@
 
 Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** `imageio` `0.3.0` covers the current public `ImageIO.framework` headers audited from the active macOS SDK:
+> **Status:** `imageio` `0.4.0` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
 >
-> - `CGImageSource.h`
-> - `CGImageDestination.h`
-> - `CGImageAnimation.h`
-> - `CGImageMetadata.h`
-> - `CGImageProperties.h`
+> - the default build compiles a tiny SwiftPM bridge from `swift-bridge/`
+> - ergonomic safe modules cover Source, Destination, Properties, Metadata, AuxiliaryData, ColorSync, AnimatedPNG, HEIF, `ProRAW`, and Thumbnail workflows
+> - the optional `raw-ffi` feature preserves the audited C header surface in `imageio::ffi`
+> - [`COVERAGE.md`](COVERAGE.md) tracks the audited rows from `CGImageSource.h`, `CGImageDestination.h`, `CGImageAnimation.h`, `CGImageMetadata.h`, and `CGImageProperties.h`
 
-`ImageIO` is a pure C framework, so this crate stays **zero-Swift**. The full SDK surface is available through `imageio::ffi`, while the crate also layers safe Rust helpers for the most common workflows.
+## Requirements
 
-## High-level API
+- macOS 13+
+- Xcode command line tools / a working Swift toolchain
+
+## Safe API areas
+
+| Area | Rust module(s) | Swift bridge file | Example |
+| --- | --- | --- | --- |
+| Source | `source`, `image` | `Source.swift` | `01_source_overview` |
+| Destination | `destination`, `image` | `Destination.swift` | `02_destination_roundtrip` |
+| Properties | `properties` | `Properties.swift` | `03_properties_view` |
+| Metadata | `metadata` | `Metadata.swift` | `04_metadata_roundtrip` |
+| AuxiliaryData | `auxiliary_data` | `AuxiliaryData.swift` | `05_auxiliary_data` |
+| ColorSync | `color_sync` | `ColorSync.swift` | `06_color_sync` |
+| AnimatedPNG | `animated_png`, `animation` | `AnimatedPNG.swift` | `07_animated_png` |
+| HEIF | `heif` | `HEIF.swift` | `08_heif` |
+| `ProRAW` | `proraw` | `ProRAW.swift` | `09_proraw` |
+| Thumbnail | `thumbnail` | `Thumbnail.swift` | `10_thumbnail` |
+
+## High-level helpers
 
 - `read_metadata(path)`
 - `decode_bgra(path)`
@@ -21,8 +38,10 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 - `convert_format(input, output, format)`
 - `copy_image_source(input, output, format)`
 - `ImageSource` + `SourceStatus` for file/data/incremental sources
-- `Metadata`, `MutableMetadata`, `MetadataTag` for `CGImageMetadata`
-- `animate_image` / `animate_image_from_bytes` for `CGImageAnimation`
+- `ImageDestination` for file/data encodes, metadata, and auxiliary data
+- `ImageProperties` / `MutableProperties` plus typed APNG / HEIF / `ProRAW` / color helpers
+- `Metadata`, `MutableMetadata`, and `MetadataTag` for XMP workflows
+- `create_thumbnail`, `animate_image`, and `animate_image_from_bytes`
 
 ## Quick start
 
@@ -36,7 +55,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let png = output.join("photo.png");
 
     let meta = read_metadata(&input)?;
-    println!("{}x{}, alpha={}, format={:?}", meta.width, meta.height, meta.has_alpha, meta.source_format);
+    println!(
+        "{}x{}, alpha={}, format={:?}",
+        meta.width, meta.height, meta.has_alpha, meta.source_format
+    );
 
     let decoded = decode_bgra(&input)?;
     println!("decoded {} bytes", decoded.bgra.len());
@@ -46,45 +68,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Lower-level examples
+## Examples
 
-The shipped smoke examples exercise the safe wrappers and the raw framework paths end-to-end:
+The numbered smoke examples cover every logical area and all exit successfully on headless macOS:
 
-- `01_read_image`
-- `02_convert_format`
-- `02_data_round_trip`
-- `03_incremental_source`
-- `04_metadata`
-- `05_animation`
-- `06_copy_image_source`
+- `01_source_overview`
+- `02_destination_roundtrip`
+- `03_properties_view`
+- `04_metadata_roundtrip`
+- `05_auxiliary_data`
+- `06_color_sync`
+- `07_animated_png`
+- `08_heif`
+- `09_proraw`
+- `10_thumbnail`
 
-All examples write outputs under `target/example-output`.
+Shared example output is written under `target/example-output`.
 
-## Raw FFI
+## Features
 
-For APIs that are not wrapped ergonomically yet, use `imageio::ffi`. The crate exposes the full audited function / constant / enum surface from the headers above, including:
-
-- `CGImageSource*`
-- `CGImageDestination*`
-- `CGAnimateImage*`
-- `CGImageMetadata*`
-- `kCGImageProperty*` / `kCGImageSource*` / `kCGImageDestination*` constants
+- default: safe Rust API backed by the Swift bridge in `swift-bridge/`
+- `raw-ffi`: export the audited `ImageIO` C declarations in `imageio::ffi`
 
 ## Verification
 
 The crate is verified with:
 
 ```bash
-cargo build --all-features
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --all-targets -- -D warnings
 cargo test
-cargo run --example 01_read_image
-cargo run --example 02_convert_format
-cargo run --example 02_data_round_trip
-cargo run --example 03_incremental_source
-cargo run --example 04_metadata
-cargo run --example 05_animation
-cargo run --example 06_copy_image_source
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --features raw-ffi
+for ex in examples/*.rs; do cargo run --example "$(basename "$ex" .rs)"; done
 ```
 
 ## License

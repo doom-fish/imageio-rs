@@ -1,15 +1,15 @@
 //! Safe wrapper around `CGImageSource`.
 
-use core::ptr;
 use std::path::Path;
 
+use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
+use crate::bridge::{self, source as ffi, Handle};
 use crate::error::ImageError;
-use crate::ffi;
 use crate::image::DecodedImage;
 use crate::metadata::Metadata;
-use crate::util::{cf_string_to_string, cg_image_to_bgra, make_cf_data, make_file_url};
+use crate::properties::ImageProperties;
 
-/// Incremental / file-backed image source status.
+/// Incremental and file-backed source state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum SourceStatus {
@@ -19,143 +19,217 @@ pub enum SourceStatus {
     ReadingHeader,
     Incomplete,
     Complete,
-    Unknown(ffi::CGImageSourceStatus),
+    Unknown(i32),
 }
 
-impl From<ffi::CGImageSourceStatus> for SourceStatus {
-    fn from(value: ffi::CGImageSourceStatus) -> Self {
+impl From<i32> for SourceStatus {
+    fn from(value: i32) -> Self {
         match value {
-            ffi::kCGImageStatusUnexpectedEOF => Self::UnexpectedEof,
-            ffi::kCGImageStatusInvalidData => Self::InvalidData,
-            ffi::kCGImageStatusUnknownType => Self::UnknownType,
-            ffi::kCGImageStatusReadingHeader => Self::ReadingHeader,
-            ffi::kCGImageStatusIncomplete => Self::Incomplete,
-            ffi::kCGImageStatusComplete => Self::Complete,
+            -5 => Self::UnexpectedEof,
+            -4 => Self::InvalidData,
+            -3 => Self::UnknownType,
+            -2 => Self::ReadingHeader,
+            -1 => Self::Incomplete,
+            0 => Self::Complete,
             other => Self::Unknown(other),
         }
     }
 }
 
-/// Safe owning wrapper for `CGImageSourceRef`.
+/// Owned image source.
 #[derive(Debug)]
 pub struct ImageSource {
-    raw: ffi::CGImageSourceRef,
+    raw: Handle,
 }
 
 impl ImageSource {
-    fn from_raw(raw: ffi::CGImageSourceRef) -> Option<Self> {
+    pub(crate) fn from_raw(raw: Handle) -> Option<Self> {
         (!raw.is_null()).then_some(Self { raw })
     }
 
-    /// Open an image source from a file path.
+    pub(crate) const fn as_raw(&self) -> Handle {
+        self.raw
+    }
+
+    #[must_use]
+    pub fn type_identifiers() -> Vec<String> {
+        bridge::copy_string_array(unsafe { ffi::imageio_source_copy_type_identifiers() })
+    }
+
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ImageError> {
-        let url = make_file_url(path.as_ref())?;
-        let source = unsafe { ffi::CGImageSourceCreateWithURL(url, ptr::null()) };
-        unsafe { ffi::CFRelease(url.cast()) };
-        Self::from_raw(source).ok_or_else(|| {
-            ImageError::OpenSourceFailed("CGImageSourceCreateWithURL returned NULL".into())
+        let path = bridge::path_to_cstring(path.as_ref())?;
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_create_from_path(path.as_ptr(), buffer, size)
+        });
+        Self::from_raw(raw).ok_or_else(|| {
+            ImageError::OpenSourceFailed(if message.is_empty() {
+                "imageio_source_create_from_path returned NULL".into()
+            } else {
+                message
+            })
         })
     }
 
-    /// Open an image source from in-memory encoded bytes.
     pub fn from_bytes(data: &[u8]) -> Result<Self, ImageError> {
-        let data = make_cf_data(data)?;
-        let source = unsafe { ffi::CGImageSourceCreateWithData(data, ptr::null()) };
-        unsafe { ffi::CFRelease(data.cast()) };
-        Self::from_raw(source).ok_or_else(|| {
-            ImageError::OpenSourceFailed("CGImageSourceCreateWithData returned NULL".into())
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_create_from_bytes(data.as_ptr(), data.len(), buffer, size)
+        });
+        Self::from_raw(raw).ok_or_else(|| {
+            ImageError::OpenSourceFailed(if message.is_empty() {
+                "imageio_source_create_from_bytes returned NULL".into()
+            } else {
+                message
+            })
         })
     }
 
-    /// Create an empty incremental source.
     pub fn incremental() -> Result<Self, ImageError> {
-        let source = unsafe { ffi::CGImageSourceCreateIncremental(ptr::null()) };
-        Self::from_raw(source).ok_or_else(|| {
-            ImageError::OpenSourceFailed("CGImageSourceCreateIncremental returned NULL".into())
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_create_incremental(buffer, size)
+        });
+        Self::from_raw(raw).ok_or_else(|| {
+            ImageError::OpenSourceFailed(if message.is_empty() {
+                "imageio_source_create_incremental returned NULL".into()
+            } else {
+                message
+            })
         })
     }
 
-    /// Source UTI / type identifier.
     #[must_use]
     pub fn source_type(&self) -> Option<String> {
-        cf_string_to_string(unsafe { ffi::CGImageSourceGetType(self.raw) })
+        bridge::copy_string(unsafe { ffi::imageio_source_copy_type(self.raw) })
     }
 
-    /// Number of images / frames in the source.
     #[must_use]
     pub fn frame_count(&self) -> usize {
-        unsafe { ffi::CGImageSourceGetCount(self.raw) }
+        unsafe { ffi::imageio_source_get_count(self.raw) }
     }
 
-    /// Source status.
     #[must_use]
     pub fn status(&self) -> SourceStatus {
-        unsafe { ffi::CGImageSourceGetStatus(self.raw).into() }
+        unsafe { ffi::imageio_source_get_status(self.raw) }.into()
     }
 
-    /// Per-frame status.
     #[must_use]
     pub fn status_at_index(&self, index: usize) -> SourceStatus {
-        unsafe { ffi::CGImageSourceGetStatusAtIndex(self.raw, index).into() }
+        unsafe { ffi::imageio_source_get_status_at_index(self.raw, index) }.into()
     }
 
-    /// Update an incremental source with more encoded bytes.
     pub fn update_data(&mut self, data: &[u8], is_final: bool) -> Result<(), ImageError> {
-        let data = make_cf_data(data)?;
-        unsafe {
-            ffi::CGImageSourceUpdateData(self.raw, data, is_final);
-            ffi::CFRelease(data.cast());
+        let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_update_data(self.raw, data.as_ptr(), data.len(), is_final, buffer, size)
+        });
+        if ok {
+            Ok(())
+        } else {
+            Err(ImageError::OpenSourceFailed(if message.is_empty() {
+                "imageio_source_update_data returned false".into()
+            } else {
+                message
+            }))
         }
-        Ok(())
     }
 
-    /// Decode a frame into tightly packed BGRA bytes.
-    pub fn decode_image_at_index(&self, index: usize) -> Result<DecodedImage, ImageError> {
-        let image = unsafe { ffi::CGImageSourceCreateImageAtIndex(self.raw, index, ptr::null()) };
-        if image.is_null() {
-            return Err(ImageError::DecodeFailed(
-                "CGImageSourceCreateImageAtIndex returned NULL".into(),
-            ));
-        }
-        let decoded = cg_image_to_bgra(image);
-        unsafe { ffi::CGImageRelease(image) };
-        decoded
+    pub fn copy_properties(&self) -> Result<ImageProperties, ImageError> {
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_copy_properties(self.raw, buffer, size)
+        });
+        ImageProperties::from_raw(raw).ok_or_else(|| {
+            ImageError::DecodeFailed(if message.is_empty() {
+                "imageio_source_copy_properties returned NULL".into()
+            } else {
+                message
+            })
+        })
     }
 
-    /// Copy the frame metadata at `index`.
+    pub fn properties_at_index(&self, index: usize) -> Result<ImageProperties, ImageError> {
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_copy_properties_at_index(self.raw, index, buffer, size)
+        });
+        ImageProperties::from_raw(raw).ok_or_else(|| {
+            ImageError::DecodeFailed(if message.is_empty() {
+                "imageio_source_copy_properties_at_index returned NULL".into()
+            } else {
+                message
+            })
+        })
+    }
+
     #[must_use]
     pub fn metadata_at_index(&self, index: usize) -> Option<Metadata> {
-        let metadata =
-            unsafe { ffi::CGImageSourceCopyMetadataAtIndex(self.raw, index, ptr::null()) };
-        Metadata::from_raw(metadata)
+        Metadata::from_raw(unsafe { ffi::imageio_source_copy_metadata_at_index(self.raw, index) })
     }
 
-    /// Primary image index for formats that designate one.
+    pub fn auxiliary_data_at_index(
+        &self,
+        index: usize,
+        auxiliary_type: AuxiliaryDataType,
+    ) -> Result<Option<AuxiliaryDataInfo>, ImageError> {
+        let auxiliary_type = bridge::cstring(auxiliary_type.identifier())?;
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_copy_auxiliary_data_at_index(
+                self.raw,
+                index,
+                auxiliary_type.as_ptr(),
+                buffer,
+                size,
+            )
+        });
+        if raw.is_null() && !message.is_empty() {
+            return Err(ImageError::DecodeFailed(message));
+        }
+        Ok(AuxiliaryDataInfo::from_raw(raw))
+    }
+
+    pub fn decode_image_at_index(&self, index: usize) -> Result<DecodedImage, ImageError> {
+        let mut width = 0_usize;
+        let mut height = 0_usize;
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_create_bgra_at_index(
+                self.raw,
+                index,
+                &mut width,
+                &mut height,
+                buffer,
+                size,
+            )
+        });
+        if raw.is_null() {
+            return Err(ImageError::DecodeFailed(if message.is_empty() {
+                "imageio_source_create_bgra_at_index returned NULL".into()
+            } else {
+                message
+            }));
+        }
+        Ok(DecodedImage {
+            width,
+            height,
+            bgra: bridge::copy_data(raw),
+        })
+    }
+
     #[must_use]
     pub fn primary_image_index(&self) -> usize {
-        unsafe { ffi::CGImageSourceGetPrimaryImageIndex(self.raw) }
+        unsafe { ffi::imageio_source_get_primary_image_index(self.raw) }
     }
 
-    /// Clear cached decode state for a frame.
     pub fn remove_cache_at_index(&self, index: usize) {
-        unsafe { ffi::CGImageSourceRemoveCacheAtIndex(self.raw, index) };
-    }
-
-    #[must_use]
-    pub const fn as_raw(&self) -> ffi::CGImageSourceRef {
-        self.raw
+        unsafe { ffi::imageio_source_remove_cache_at_index(self.raw, index) };
     }
 }
 
 impl Clone for ImageSource {
     fn clone(&self) -> Self {
-        let raw = unsafe { ffi::CFRetain(self.raw.cast()).cast_mut() };
-        Self { raw }
+        Self {
+            raw: bridge::retain(self.raw),
+        }
     }
 }
 
 impl Drop for ImageSource {
     fn drop(&mut self) {
-        unsafe { ffi::CFRelease(self.raw.cast()) };
+        bridge::release(self.raw);
     }
 }

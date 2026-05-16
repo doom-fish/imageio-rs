@@ -1,11 +1,11 @@
 [package]
 name = "imageio"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
 repository = "https://github.com/doom-fish/imageio-rs"
-description = "Safe Rust bindings for Apple's ImageIO framework — full public header coverage with metadata, animation, incremental sources, and BGRA decode on macOS"
+description = "Safe Rust bindings for Apple's ImageIO framework with a Swift bridge, typed property helpers, thumbnails, HEIF/APNG tooling, and optional raw FFI on macOS"
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["image", "png", "jpeg", "heic", "macos"]
 categories = ["api-bindings", "os::macos-apis", "multimedia::images"]
@@ -14,14 +14,20 @@ readme = "README.md"
 build = "build.rs"
 include = [
     "src/**/*",
+    "swift-bridge/**/*",
     "examples/**/*",
     "tests/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",
+    "COVERAGE.md",
     "LICENSE-*",
     "CHANGELOG.md",
 ]
+
+[features]
+default = []
+raw-ffi = []
 
 [lints.rust]
 
@@ -35,8 +41,6 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
-block2 = "0.5.1"
-objc2 = "0.5.2"
 
 [dev-dependencies]
 regex-lite = "0.1"
@@ -50,27 +54,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [badges]
 maintenance = { status = "actively-developed" }
 
-[[example]]
-name = "01_read_image"
-
-[[example]]
-name = "02_convert_format"
-
 [profile.release]
 debug = "full"
 strip = "none"
-
-[[example]]
-name = "02_data_round_trip"
-
-[[example]]
-name = "03_incremental_source"
-
-[[example]]
-name = "04_metadata"
-
-[[example]]
-name = "05_animation"
-
-[[example]]
-name = "06_copy_image_source"

@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.4.0] - 2026-05-16
+
+### Added
+
+- A SwiftPM-backed `ImageIOBridge` build pipeline so the default crate path now
+  follows the `screencapturekit-rs` bridge pattern for the C-only
+  `ImageIO.framework`.
+- Safe Rust modules for the requested logical areas:
+  - Source
+  - Destination
+  - Properties
+  - Metadata
+  - AuxiliaryData
+  - ColorSync
+  - AnimatedPNG
+  - HEIF
+  - ProRAW
+  - Thumbnail
+- Ten numbered examples, one per logical area:
+  - `01_source_overview`
+  - `02_destination_roundtrip`
+  - `03_properties_view`
+  - `04_metadata_roundtrip`
+  - `05_auxiliary_data`
+  - `06_color_sync`
+  - `07_animated_png`
+  - `08_heif`
+  - `09_proraw`
+  - `10_thumbnail`
+- Area-based smoke tests plus raw-header coverage validation behind the new
+  `raw-ffi` feature.
+- `COVERAGE.md`, documenting the audited `ImageIO` SDK rows from the active
+  macOS SDK.
+
+### Changed
+
+- The full raw C surface is now explicitly gated behind the `raw-ffi` cargo
+  feature while the default build goes through the Swift bridge.
+- README now documents the bridge architecture, safe API split, numbered
+  examples, and verification workflow.
+- The header-driven coverage harness now checks `CGAnimateImage*` symbols in
+  addition to the source, destination, metadata, and property families.
+
+### Fixed
+
+- Corrected ownership in mutable properties / metadata constructors so bridged
+  handles are not released prematurely before later mutation or animation use.
+- Cleaned up the new safe surface for `clippy --all-targets --all-features`.
+
 ## [0.3.0] - 2026-05-16
 
 ### Added
