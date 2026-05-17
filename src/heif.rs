@@ -30,8 +30,12 @@ impl HeifProperties {
         let heics = properties.dictionary(HEICS_DICTIONARY_KEY)?;
         Ok(Self {
             is_primary: properties.bool(PRIMARY_IMAGE_KEY)?,
-            loop_count: heics.as_ref().map_or(Ok(None), |props| props.i64(HEICS_LOOP_COUNT_KEY))?,
-            delay_time: heics.as_ref().map_or(Ok(None), |props| props.f64(HEICS_DELAY_TIME_KEY))?,
+            loop_count: heics
+                .as_ref()
+                .map_or(Ok(None), |props| props.i64(HEICS_LOOP_COUNT_KEY))?,
+            delay_time: heics
+                .as_ref()
+                .map_or(Ok(None), |props| props.f64(HEICS_DELAY_TIME_KEY))?,
             unclamped_delay_time: heics
                 .as_ref()
                 .map_or(Ok(None), |props| props.f64(HEICS_UNCLAMPED_DELAY_TIME_KEY))?,

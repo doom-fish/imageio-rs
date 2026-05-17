@@ -9,7 +9,8 @@ fn thumbnail_generation_downscales_image() {
     common::write_sample_png(&png);
 
     let source = ImageSource::from_path(&png).expect("open sample png");
-    let thumbnail = create_thumbnail(&source, 0, ThumbnailOptions::new(1)).expect("create thumbnail");
+    let thumbnail =
+        create_thumbnail(&source, 0, ThumbnailOptions::new(1)).expect("create thumbnail");
 
     assert!(thumbnail.width <= common::sample_image().width);
     assert!(thumbnail.height <= common::sample_image().height);

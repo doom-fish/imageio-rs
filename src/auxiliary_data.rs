@@ -85,7 +85,9 @@ impl AuxiliaryDataInfo {
 
     #[must_use]
     pub fn description(&self) -> Option<ImageProperties> {
-        ImageProperties::from_raw(unsafe { ffi::imageio_auxiliary_data_info_copy_description(self.raw) })
+        ImageProperties::from_raw(unsafe {
+            ffi::imageio_auxiliary_data_info_copy_description(self.raw)
+        })
     }
 
     pub fn set_metadata(&mut self, metadata: &Metadata) {

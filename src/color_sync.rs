@@ -60,7 +60,10 @@ pub fn profile_name(properties: &ImageProperties) -> Option<String> {
     bridge::copy_string(unsafe { ffi::imageio_properties_copy_profile_name(properties.as_raw()) })
 }
 
-pub fn source_profile_name(source: &ImageSource, index: usize) -> Result<Option<String>, ImageError> {
+pub fn source_profile_name(
+    source: &ImageSource,
+    index: usize,
+) -> Result<Option<String>, ImageError> {
     let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
         ffi::imageio_source_copy_profile_name_at_index(source.as_raw(), index, buffer, size)
     });

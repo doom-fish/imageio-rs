@@ -72,8 +72,10 @@ impl ProRawBuilder {
     }
 
     pub fn build(mut self) -> Result<ImageProperties, ImageError> {
-        self.root.set_dictionary(RAW_DICTIONARY_KEY, &self.raw.freeze()?)?;
-        self.root.set_dictionary(DNG_DICTIONARY_KEY, &self.dng.freeze()?)?;
+        self.root
+            .set_dictionary(RAW_DICTIONARY_KEY, &self.raw.freeze()?)?;
+        self.root
+            .set_dictionary(DNG_DICTIONARY_KEY, &self.dng.freeze()?)?;
         self.root.freeze()
     }
 }

@@ -17,7 +17,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "keys={:?} profile={:?} loop_count={:?}",
         properties.keys(),
         properties.string("ProfileName")?,
-        properties.dictionary("{PNG}")?.and_then(|png| png.i64("LoopCount").ok().flatten())
+        properties
+            .dictionary("{PNG}")?
+            .and_then(|png| png.i64("LoopCount").ok().flatten())
     );
     Ok(())
 }

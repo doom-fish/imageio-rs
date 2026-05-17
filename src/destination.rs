@@ -54,7 +54,12 @@ impl ImageDestination {
     pub fn to_data(type_identifier: &str, image_count: usize) -> Result<Self, ImageError> {
         let type_identifier = bridge::cstring(type_identifier)?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_destination_create_with_data(type_identifier.as_ptr(), image_count, buffer, size)
+            ffi::imageio_destination_create_with_data(
+                type_identifier.as_ptr(),
+                image_count,
+                buffer,
+                size,
+            )
         });
         Self::from_raw(raw).ok_or_else(|| {
             ImageError::EncodeFailed(if message.is_empty() {

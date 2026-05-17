@@ -87,9 +87,9 @@ pub struct MutableProperties {
 impl MutableProperties {
     pub fn new() -> Result<Self, ImageError> {
         let raw = unsafe { ffi::imageio_mutable_properties_create() };
-        (!raw.is_null())
-            .then_some(Self { raw })
-            .ok_or_else(|| ImageError::Unknown("imageio_mutable_properties_create returned NULL".into()))
+        (!raw.is_null()).then_some(Self { raw }).ok_or_else(|| {
+            ImageError::Unknown("imageio_mutable_properties_create returned NULL".into())
+        })
     }
 
     pub fn set_string(&mut self, key: &str, value: &str) -> Result<(), ImageError> {
@@ -129,7 +129,9 @@ impl MutableProperties {
 
     pub fn freeze(&self) -> Result<ImageProperties, ImageError> {
         ImageProperties::from_raw(unsafe { ffi::imageio_mutable_properties_freeze(self.raw) })
-            .ok_or_else(|| ImageError::Unknown("imageio_mutable_properties_freeze returned NULL".into()))
+            .ok_or_else(|| {
+                ImageError::Unknown("imageio_mutable_properties_freeze returned NULL".into())
+            })
     }
 }
 

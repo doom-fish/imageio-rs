@@ -18,5 +18,7 @@ fn heif_builder_parses_primary_and_canvas_values() {
     assert_eq!(parsed.canvas_pixel_width, Some(128));
 
     let destinations = imageio::heif::supported_destination_identifiers();
-    assert!(destinations.iter().all(|identifier| identifier.contains("hei")));
+    assert!(destinations
+        .iter()
+        .all(|identifier| identifier.contains("hei")));
 }

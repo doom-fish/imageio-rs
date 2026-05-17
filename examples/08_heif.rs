@@ -13,10 +13,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let heif_destinations = imageio::heif::supported_destination_identifiers();
-    if heif_destinations.iter().any(|identifier| identifier == "public.heic") {
+    if heif_destinations
+        .iter()
+        .any(|identifier| identifier == "public.heic")
+    {
         let image = common::sample_image();
-        let bytes = encode_bgra_to_bytes(&image.bgra, image.width, image.height, ImageFormat::Heic)?;
-        println!("heic_bytes={} parsed_primary={:?}", bytes.len(), parsed.is_primary);
+        let bytes =
+            encode_bgra_to_bytes(&image.bgra, image.width, image.height, ImageFormat::Heic)?;
+        println!(
+            "heic_bytes={} parsed_primary={:?}",
+            bytes.len(),
+            parsed.is_primary
+        );
     } else {
         println!("heic unsupported parsed_primary={:?}", parsed.is_primary);
     }

@@ -8,4 +8,7 @@ pub mod properties;
 pub mod source;
 pub mod thumbnail;
 
-pub use common::{copy_data, copy_string, copy_string_array, cstring, path_to_cstring, release, retain, with_error_buffer, Handle};
+pub use common::{
+    copy_data, copy_string, copy_string_array, cstring, path_to_cstring, release, retain,
+    with_error_buffer, Handle,
+};

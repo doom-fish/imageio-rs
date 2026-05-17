@@ -37,7 +37,10 @@ pub fn copy_string(raw: Handle) -> Option<String> {
         imageio_string_copy_utf8(raw, buffer.as_mut_ptr(), buffer.len());
         imageio_release(raw);
     }
-    let end = buffer.iter().position(|&byte| byte == 0).unwrap_or(buffer.len());
+    let end = buffer
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(buffer.len());
     buffer.truncate(end);
     String::from_utf8(buffer).ok()
 }
@@ -71,7 +74,8 @@ pub fn copy_string_array(raw: Handle) -> Vec<String> {
 }
 
 pub fn cstring(value: &str) -> Result<CString, ImageError> {
-    CString::new(value).map_err(|err| ImageError::Unknown(format!("CString conversion failed: {err}")))
+    CString::new(value)
+        .map_err(|err| ImageError::Unknown(format!("CString conversion failed: {err}")))
 }
 
 pub fn path_to_cstring(path: &Path) -> Result<CString, ImageError> {

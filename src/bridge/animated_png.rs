@@ -1,12 +1,7 @@
 use super::common::Handle;
 
-pub type AnimationCallback = unsafe extern "C" fn(
-    usize,
-    usize,
-    usize,
-    Handle,
-    *mut std::ffi::c_void,
-) -> bool;
+pub type AnimationCallback =
+    unsafe extern "C" fn(usize, usize, usize, Handle, *mut std::ffi::c_void) -> bool;
 
 unsafe extern "C" {
     pub fn imageio_animate_image_at_path(

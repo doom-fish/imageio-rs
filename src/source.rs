@@ -118,7 +118,14 @@ impl ImageSource {
 
     pub fn update_data(&mut self, data: &[u8], is_final: bool) -> Result<(), ImageError> {
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_source_update_data(self.raw, data.as_ptr(), data.len(), is_final, buffer, size)
+            ffi::imageio_source_update_data(
+                self.raw,
+                data.as_ptr(),
+                data.len(),
+                is_final,
+                buffer,
+                size,
+            )
         });
         if ok {
             Ok(())

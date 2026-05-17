@@ -9,7 +9,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .delay_time(0.1)
         .canvas_size(64, 64)
         .build()?;
-    let parsed = AnimatedPngProperties::from_properties(&props)?.ok_or("missing APNG properties")?;
+    let parsed =
+        AnimatedPngProperties::from_properties(&props)?.ok_or("missing APNG properties")?;
 
     let mut frames = 0_usize;
     animate_image(common::animated_gif_path(), |_, _| {

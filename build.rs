@@ -48,8 +48,14 @@ fn main() {
         .expect("failed to build Swift bridge");
 
     if !output.status.success() {
-        eprintln!("Swift build stdout:\n{}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("Swift build stderr:\n{}", String::from_utf8_lossy(&output.stderr));
+        eprintln!(
+            "Swift build stdout:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        eprintln!(
+            "Swift build stderr:\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
         panic!("swift build failed with status {:?}", output.status.code());
     }
 
