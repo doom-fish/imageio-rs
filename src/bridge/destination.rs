@@ -39,7 +39,7 @@ unsafe extern "C" {
     ) -> bool;
     pub fn imageio_destination_add_cg_image(
         raw: Handle,
-        cg_image: super::super::ffi::CGImageRef,
+        cg_image: *mut core::ffi::c_void,
         properties: Handle,
         error_buffer: *mut i8,
         error_buffer_size: usize,

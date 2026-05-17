@@ -1,15 +1,21 @@
 //! Safe wrapper around `CGImageDestination`.
 
+use core::ffi::c_void;
 use std::path::Path;
 
 use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
 use crate::bridge::{self, destination as ffi, Handle};
 use crate::error::ImageError;
-use crate::ffi::CGImageRef;
 use crate::image::DecodedImage;
 use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 use crate::source::ImageSource;
+
+/// Opaque pointer to a `CGImage`. Stable type alias re-exported here so callers
+/// can pass a `CGImage` handle (from any source — `CGImageSource`,
+/// `VTCreateCGImageFromCVPixelBuffer`, `screencapturekit-rs`, etc.) to
+/// [`ImageDestination::add_cg_image`] without enabling the `raw-ffi` feature.
+pub type CGImageRef = *mut c_void;
 
 /// Owned destination handle.
 #[derive(Debug)]
