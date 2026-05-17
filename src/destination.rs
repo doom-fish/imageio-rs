@@ -1,6 +1,5 @@
 //! Safe wrapper around `CGImageDestination`.
 
-use core::ffi::c_void;
 use std::path::Path;
 
 use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
@@ -11,13 +10,10 @@ use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 use crate::source::ImageSource;
 
-/// Opaque pointer to a `CGImage`.
-///
-/// Stable type alias re-exported here so callers can pass a `CGImage`
-/// handle (from any source — `CGImageSource`,
-/// `VTCreateCGImageFromCVPixelBuffer`, `screencapturekit-rs`, etc.) to
-/// [`ImageDestination::add_cg_image`] without enabling the `raw-ffi` feature.
-pub type CGImageRef = *mut c_void;
+// Re-export apple-cf's CGImage so callers can pass it to add_cg_image without
+// having to add apple-cf to their own dependencies, and so docs link to the
+// authoritative type rather than a synonym.
+pub use apple_cf::cg::CGImage;
 
 /// Owned destination handle.
 #[derive(Debug)]
@@ -150,7 +146,7 @@ impl ImageDestination {
         }
     }
 
-    /// Add a `CGImage` directly to the destination without round-tripping
+    /// Add a [`CGImage`] directly to the destination without round-tripping
     /// through host BGRA bytes.
     ///
     /// Useful when the caller already holds a `CGImage` — e.g. one decoded
@@ -160,29 +156,29 @@ impl ImageDestination {
     /// end-to-end into output formats that support it natively (JPEG, HEIC) —
     /// no host-side colour conversion, no extra allocation.
     ///
-    /// # Safety
-    ///
-    /// `cg_image` must point to a valid `CGImageRef` that the caller
-    /// continues to own for the duration of this call. The destination
-    /// retains its own reference via `CGImageDestinationAddImage`; the
-    /// caller's reference is not consumed.
+    /// The destination takes its own reference via
+    /// `CGImageDestinationAddImage`; the caller's [`CGImage`] is borrowed
+    /// for the duration of the call and remains valid afterwards.
     ///
     /// # Errors
     ///
     /// Returns [`ImageError::EncodeFailed`] if the destination rejects the
     /// image (e.g. the destination's type identifier doesn't accept the
     /// image's pixel format).
-    pub unsafe fn add_cg_image(
+    pub fn add_cg_image(
         &mut self,
-        cg_image: CGImageRef,
+        cg_image: &CGImage,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
-        if cg_image.is_null() {
-            return Err(ImageError::EncodeFailed("null CGImageRef".into()));
-        }
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_destination_add_cg_image(self.raw, cg_image, properties_raw, buffer, size)
+            ffi::imageio_destination_add_cg_image(
+                self.raw,
+                cg_image.as_ptr(),
+                properties_raw,
+                buffer,
+                size,
+            )
         });
         if ok {
             Ok(())

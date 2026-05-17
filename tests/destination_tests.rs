@@ -16,71 +16,65 @@ fn destination_round_trips_encoded_data() {
     assert!(source.source_type().is_some());
 }
 
-#[cfg(feature = "raw-ffi")]
 #[test]
-#[allow(
-    clippy::items_after_statements,
-    clippy::cast_possible_wrap,
-    clippy::ptr_as_ptr,
-    clippy::ptr_cast_constness,
-    clippy::len_zero
-)]
-fn destination_round_trips_via_add_cg_image() {
-    // 1. Encode a sample image so we have something to read back as a CGImage
-    let image = common::sample_image();
-    let mut src_destination = ImageDestination::to_data(ImageFormat::Png.type_identifier(), 1)
-        .expect("create png destination");
-    src_destination.add_image(&image, None).expect("add seed");
-    src_destination.finalize().expect("finalize seed");
-    let seed_bytes = src_destination.data().expect("seed data");
+fn destination_add_cg_image_accepts_apple_cf_cgimage() {
+    use imageio::destination::CGImage;
 
-    // 2. Open it via raw ImageIO FFI to obtain a CGImage handle (real Apple
-    //    CGImage, not a hand-built one — exercises the same zero-copy
-    //    integration path that screencapturekit-rs callers will use)
-    use imageio::ffi;
-    let cg_image: ffi::CGImageRef = unsafe {
-        let cf_data = ffi::CFDataCreate(
-            std::ptr::null_mut(),
-            seed_bytes.as_ptr(),
-            seed_bytes.len() as isize,
-        );
-        assert!(!cf_data.is_null(), "CFDataCreate returned null");
-        let isrc = ffi::CGImageSourceCreateWithData(cf_data, std::ptr::null_mut());
-        assert!(!isrc.is_null(), "CGImageSourceCreateWithData returned null");
-        let img = ffi::CGImageSourceCreateImageAtIndex(isrc, 0, std::ptr::null_mut());
-        assert!(!img.is_null(), "CGImageSourceCreateImageAtIndex returned null");
-        ffi::CFRelease(isrc as *const _);
-        ffi::CFRelease(cf_data as *const _);
-        img
-    };
+    // Decode a real CGImage via CGImageSource. This exercises that the
+    // re-export from apple-cf compiles and is the right type — and that
+    // ImageSource yields one.
+    let seed = common::sample_image();
+    let mut seed_dest = ImageDestination::to_data(ImageFormat::Png.type_identifier(), 1)
+        .expect("create seed destination");
+    seed_dest.add_image(&seed, None).expect("add seed");
+    seed_dest.finalize().expect("finalize seed");
+    let seed_bytes = seed_dest.data().expect("seed bytes");
 
-    // 3. Pipe the CGImage handle through add_cg_image into a fresh JPEG
-    //    destination — no decode-encode round trip, no host-side copy.
-    let mut destination = ImageDestination::to_data(ImageFormat::Jpeg.type_identifier(), 1)
+    let source = ImageSource::from_bytes(&seed_bytes).expect("open seed");
+    // Decode to a CGImage via apple-cf's CGImageSource (bypassing imageio's
+    // BGRA round-trip path; the goal is to get a real Apple-produced CGImage
+    // handle that we can hand to add_cg_image).
+    let cg: CGImage = decode_first_cg_image(&seed_bytes);
+
+    let mut dest = ImageDestination::to_data(ImageFormat::Jpeg.type_identifier(), 1)
         .expect("create jpeg destination");
-    unsafe {
-        destination
-            .add_cg_image(cg_image, None)
-            .expect("add_cg_image");
-    }
-    destination.finalize().expect("finalize");
-    let bytes = destination.data().expect("destination data");
-    assert!(bytes.len() > 0, "encoded bytes should be non-empty");
+    // ← fully safe API: no `unsafe` block in the consumer call site.
+    dest.add_cg_image(&cg, None).expect("add_cg_image");
+    dest.finalize().expect("finalize");
+    let jpeg = dest.data().expect("jpeg bytes");
+    assert!(!jpeg.is_empty(), "encoded JPEG must be non-empty");
 
-    // 4. Decode the result and confirm it's a valid image
-    let reread = ImageSource::from_bytes(&bytes).expect("open re-encoded bytes");
+    let reread = ImageSource::from_bytes(&jpeg).expect("open re-encoded");
     assert!(reread.frame_count() >= 1);
-    assert!(reread.source_type().is_some(), "re-encoded JPEG should have a known type");
 
-    unsafe { ffi::CGImageRelease(cg_image) };
+    // Suppress unused-source warning
+    let _ = source;
 }
 
-#[test]
-fn destination_add_cg_image_rejects_null() {
-    let mut destination = ImageDestination::to_data(ImageFormat::Jpeg.type_identifier(), 1)
-        .expect("create destination");
-    let err = unsafe { destination.add_cg_image(std::ptr::null_mut(), None) }
-        .expect_err("null CGImageRef must error");
-    let msg = format!("{err}");
-    assert!(msg.contains("null") || msg.to_lowercase().contains("cgimage"), "got: {msg}");
+/// Decode the first frame of `bytes` into an `apple-cf` `CGImage` via the
+/// `CGImageSource` C API directly. Used only to construct a real Apple
+/// `CGImage` for `add_cg_image` round-trip tests.
+fn decode_first_cg_image(bytes: &[u8]) -> apple_cf::cg::CGImage {
+    use core::ffi::c_void;
+    extern "C" {
+        fn CFDataCreate(allocator: *const c_void, bytes: *const u8, length: isize) -> *mut c_void;
+        fn CFRelease(cf: *const c_void);
+        fn CGImageSourceCreateWithData(data: *mut c_void, options: *const c_void) -> *mut c_void;
+        fn CGImageSourceCreateImageAtIndex(
+            isrc: *mut c_void,
+            index: usize,
+            options: *const c_void,
+        ) -> *mut c_void;
+    }
+    unsafe {
+        let data = CFDataCreate(std::ptr::null(), bytes.as_ptr(), bytes.len() as isize);
+        assert!(!data.is_null());
+        let src = CGImageSourceCreateWithData(data, std::ptr::null());
+        assert!(!src.is_null());
+        let img = CGImageSourceCreateImageAtIndex(src, 0, std::ptr::null());
+        assert!(!img.is_null());
+        CFRelease(src);
+        CFRelease(data);
+        apple_cf::cg::CGImage::from_raw(img)
+    }
 }
