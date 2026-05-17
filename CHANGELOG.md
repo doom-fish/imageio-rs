@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2] - 2025-05-17
+
+### Fixed
+
+- Added panic-safe wrappers to FFI callbacks (`animation_trampoline` and `metadata::enumerate::trampoline`) using `doom-fish-utils::panic_safe::catch_user_panic` to prevent unhandled panics from unwinding across the C ABI boundary.
+- Fixed clippy `cast_possible_wrap` warning in destination tests by using `isize::try_from` instead of `as isize` cast.
+
 ## [0.4.1] - 2026-05-16
 
 ### Added

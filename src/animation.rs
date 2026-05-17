@@ -3,6 +3,8 @@
 use std::ffi::c_void;
 use std::path::Path;
 
+use doom_fish_utils::panic_safe::catch_user_panic;
+
 use crate::bridge::{self, animated_png as ffi, Handle};
 use crate::error::ImageError;
 use crate::image::DecodedImage;
@@ -22,14 +24,18 @@ where
     F: FnMut(usize, DecodedImage) -> bool,
 {
     let state = unsafe { &mut *user_data.cast::<AnimationState<F>>() };
-    (state.callback)(
-        index,
-        DecodedImage {
-            width,
-            height,
-            bgra: bridge::copy_data(data),
-        },
-    )
+    let mut result = false;
+    catch_user_panic("animation_trampoline", || {
+        result = (state.callback)(
+            index,
+            DecodedImage {
+                width,
+                height,
+                bgra: bridge::copy_data(data),
+            },
+        );
+    });
+    result
 }
 
 pub fn animate_image<F>(path: impl AsRef<Path>, callback: F) -> Result<(), ImageError>

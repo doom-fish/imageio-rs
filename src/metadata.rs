@@ -2,6 +2,8 @@
 
 use std::ffi::c_void;
 
+use doom_fish_utils::panic_safe::catch_user_panic;
+
 use crate::bridge::{self, metadata as ffi, Handle};
 use crate::error::ImageError;
 
@@ -184,11 +186,15 @@ impl Metadata {
             F: FnMut(String, MetadataTag) -> bool,
         {
             let state = unsafe { &mut *user_data.cast::<EnumerationState<F>>() };
-            let path = bridge::copy_string(path).unwrap_or_default();
-            let Some(tag) = MetadataTag::from_raw(tag) else {
-                return false;
-            };
-            (state.callback)(path, tag)
+            let mut result = false;
+            catch_user_panic("metadata_enumerate_trampoline", || {
+                let path = bridge::copy_string(path).unwrap_or_default();
+                let Some(tag) = MetadataTag::from_raw(tag) else {
+                    return;
+                };
+                result = (state.callback)(path, tag);
+            });
+            result
         }
 
         let root_path = root_path.map(bridge::cstring).transpose()?;

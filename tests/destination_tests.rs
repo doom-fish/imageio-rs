@@ -67,7 +67,11 @@ fn decode_first_cg_image(bytes: &[u8]) -> apple_cf::cg::CGImage {
         ) -> *mut c_void;
     }
     unsafe {
-        let data = CFDataCreate(std::ptr::null(), bytes.as_ptr(), bytes.len() as isize);
+        let data = CFDataCreate(
+            std::ptr::null(),
+            bytes.as_ptr(),
+            isize::try_from(bytes.len()).unwrap_or(0),
+        );
         assert!(!data.is_null());
         let src = CGImageSourceCreateWithData(data, std::ptr::null());
         assert!(!src.is_null());
