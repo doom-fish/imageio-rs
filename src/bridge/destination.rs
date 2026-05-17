@@ -37,6 +37,13 @@ unsafe extern "C" {
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> bool;
+    pub fn imageio_destination_add_cg_image(
+        raw: Handle,
+        cg_image: super::super::ffi::CGImageRef,
+        properties: Handle,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> bool;
     pub fn imageio_destination_add_image_from_source(
         raw: Handle,
         source: Handle,

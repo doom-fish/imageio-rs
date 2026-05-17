@@ -101,6 +101,30 @@ public func imageioDestinationAddBgraImage(
     return true
 }
 
+/// Add a CGImage directly to the destination without round-tripping through
+/// host BGRA bytes. Useful when the caller already holds a CGImage (from
+/// CGImageSource, VTCreateCGImageFromCVPixelBuffer, screen-capture APIs, etc.)
+/// — skips one decode-encode cycle and lets the OS preserve native pixel
+/// formats (e.g. YCbCr 4:2:0) end-to-end into formats that support them
+/// natively (JPEG, HEIC).
+@_cdecl("imageio_destination_add_cg_image")
+public func imageioDestinationAddCgImage(
+    _ raw: UnsafeMutableRawPointer?,
+    _ cgImageRaw: UnsafeMutableRawPointer?,
+    _ properties: UnsafeMutableRawPointer?,
+    _ errorBuffer: UnsafeMutablePointer<CChar>?,
+    _ errorBufferSize: Int
+) -> Bool {
+    guard let raw, let cgImageRaw else {
+        writeCString("invalid destination or CGImage handle", into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+    let state = unretainedBox(raw, as: DestinationState.self).value
+    let cgImage = Unmanaged<CGImage>.fromOpaque(cgImageRaw).takeUnretainedValue()
+    CGImageDestinationAddImage(state.destination, cgImage, destinationProperties(properties))
+    return true
+}
+
 @_cdecl("imageio_destination_add_bgra_image_with_metadata")
 public func imageioDestinationAddBgraImageWithMetadata(
     _ raw: UnsafeMutableRawPointer?,

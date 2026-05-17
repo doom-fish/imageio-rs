@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
 use crate::bridge::{self, destination as ffi, Handle};
 use crate::error::ImageError;
+use crate::ffi::CGImageRef;
 use crate::image::DecodedImage;
 use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
@@ -135,6 +136,51 @@ impl ImageDestination {
         } else {
             Err(ImageError::EncodeFailed(if message.is_empty() {
                 "imageio_destination_add_bgra_image_with_metadata returned false".into()
+            } else {
+                message
+            }))
+        }
+    }
+
+    /// Add a `CGImage` directly to the destination without round-tripping
+    /// through host BGRA bytes.
+    ///
+    /// Useful when the caller already holds a `CGImage` — e.g. one decoded
+    /// from an `ImageSource`, produced by `VTCreateCGImageFromCVPixelBuffer`,
+    /// or returned by a screen-capture API. Skips one decode-encode cycle and
+    /// lets the OS preserve the native pixel format (e.g. YCbCr 4:2:0)
+    /// end-to-end into output formats that support it natively (JPEG, HEIC) —
+    /// no host-side colour conversion, no extra allocation.
+    ///
+    /// # Safety
+    ///
+    /// `cg_image` must point to a valid `CGImageRef` that the caller
+    /// continues to own for the duration of this call. The destination
+    /// retains its own reference via `CGImageDestinationAddImage`; the
+    /// caller's reference is not consumed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageError::EncodeFailed`] if the destination rejects the
+    /// image (e.g. the destination's type identifier doesn't accept the
+    /// image's pixel format).
+    pub unsafe fn add_cg_image(
+        &mut self,
+        cg_image: CGImageRef,
+        properties: Option<&ImageProperties>,
+    ) -> Result<(), ImageError> {
+        if cg_image.is_null() {
+            return Err(ImageError::EncodeFailed("null CGImageRef".into()));
+        }
+        let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
+        let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_destination_add_cg_image(self.raw, cg_image, properties_raw, buffer, size)
+        });
+        if ok {
+            Ok(())
+        } else {
+            Err(ImageError::EncodeFailed(if message.is_empty() {
+                "imageio_destination_add_cg_image returned false".into()
             } else {
                 message
             }))
