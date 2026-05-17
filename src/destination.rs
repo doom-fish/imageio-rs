@@ -11,8 +11,10 @@ use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 use crate::source::ImageSource;
 
-/// Opaque pointer to a `CGImage`. Stable type alias re-exported here so callers
-/// can pass a `CGImage` handle (from any source — `CGImageSource`,
+/// Opaque pointer to a `CGImage`.
+///
+/// Stable type alias re-exported here so callers can pass a `CGImage`
+/// handle (from any source — `CGImageSource`,
 /// `VTCreateCGImageFromCVPixelBuffer`, `screencapturekit-rs`, etc.) to
 /// [`ImageDestination::add_cg_image`] without enabling the `raw-ffi` feature.
 pub type CGImageRef = *mut c_void;

@@ -18,6 +18,13 @@ fn destination_round_trips_encoded_data() {
 
 #[cfg(feature = "raw-ffi")]
 #[test]
+#[allow(
+    clippy::items_after_statements,
+    clippy::cast_possible_wrap,
+    clippy::ptr_as_ptr,
+    clippy::ptr_cast_constness,
+    clippy::len_zero
+)]
 fn destination_round_trips_via_add_cg_image() {
     // 1. Encode a sample image so we have something to read back as a CGImage
     let image = common::sample_image();
