@@ -14,21 +14,11 @@
 use core::ffi::{c_char, c_void};
 
 pub use apple_cf::cg::{CGPoint, CGRect, CGSize};
+pub use apple_cf::raw::{
+    CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex,
+    CFMutableDataRef, CFNumberRef, CFRunLoopRef, CFStringRef, CFTypeID, CFTypeRef, CFURLRef,
+};
 
-pub type CFTypeRef = *const c_void;
-pub type CFStringRef = *const c_void;
-pub type CFURLRef = *const c_void;
-pub type CFDictionaryRef = *const c_void;
-pub type CFMutableDataRef = *mut c_void;
-pub type CFDataRef = *const c_void;
-pub type CFAllocatorRef = *const c_void;
-pub type CFArrayRef = *const c_void;
-pub type CFBooleanRef = *const c_void;
-pub type CFNumberRef = *const c_void;
-pub type CFErrorRef = *const c_void;
-pub type CFRunLoopRef = *mut c_void;
-pub type CFTypeID = usize;
-pub type CFIndex = isize;
 pub type OSStatus = i32;
 
 pub type CGImageRef = *mut c_void;

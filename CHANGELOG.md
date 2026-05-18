@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.0] - 2026-05-18
+
+### Changed
+
+- Re-exported CoreFoundation `CF*Ref` aliases in `imageio::ffi` from `apple_cf::raw`, removing the crate-local duplicate typedefs and aligning raw interop with `apple-cf`'s opaque-pointer types.
+
 ## [0.6.0] - 2026-05-18
 
 ### Changed
