@@ -16,7 +16,8 @@ use core::ffi::{c_char, c_void};
 pub use apple_cf::cg::{CGPoint, CGRect, CGSize};
 pub use apple_cf::raw::{
     CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex,
-    CFMutableDataRef, CFNumberRef, CFRunLoopRef, CFStringRef, CFTypeID, CFTypeRef, CFURLRef,
+    CFMutableDataRef, CFNumberRef, CFRange, CFRunLoopRef, CFStringRef, CFTypeID, CFTypeRef,
+    CFURLRef, CGContextRef, CGColorSpaceRef,
 };
 
 pub type OSStatus = i32;
@@ -27,8 +28,6 @@ pub type CGImageDestinationRef = *mut c_void;
 pub type CGImageMetadataRef = *const c_void;
 pub type CGMutableImageMetadataRef = *mut c_void;
 pub type CGImageMetadataTagRef = *const c_void;
-pub type CGContextRef = *mut c_void;
-pub type CGColorSpaceRef = *mut c_void;
 pub type CGDataProviderRef = *mut c_void;
 pub type CGDataConsumerRef = *mut c_void;
 
@@ -369,13 +368,6 @@ unsafe extern "C" {
         should_interpolate: bool,
         intent: u32,
     ) -> CGImageRef;
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CFRange {
-    pub location: CFIndex,
-    pub length: CFIndex,
 }
 
 include!("generated_constants.rs");

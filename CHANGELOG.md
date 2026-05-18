@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0] - 2026-05-18
+
+### Changed
+
+- Re-exported `CFRange`, `CGContextRef`, and `CGColorSpaceRef` from `apple_cf::raw`, removing the remaining crate-local duplicate CoreFoundation/CoreGraphics typedefs.
+- Raised the `apple-cf` dependency to `>=0.9, <0.10` so raw ImageIO interop uses the shared `CGContextRef` definition from `apple-cf` 0.9.
+
 ## [0.7.0] - 2026-05-18
 
 ### Changed
