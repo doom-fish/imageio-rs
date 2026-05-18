@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - 2026-05-18
+
+### Changed
+
+- Re-exported `CGPoint`, `CGRect`, and `CGSize` from `apple_cf::cg` in `src/ffi/mod.rs`, completing the CoreGraphics geometry migration and removing crate-local duplicate definitions.
+- Updated internal CoreGraphics call sites to construct geometry via the shared `apple_cf::cg` APIs.
+
 ## [0.4.2] - 2025-05-17
 
 ### Fixed

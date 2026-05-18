@@ -13,6 +13,8 @@
 
 use core::ffi::{c_char, c_void};
 
+pub use apple_cf::cg::{CGPoint, CGRect, CGSize};
+
 pub type CFTypeRef = *const c_void;
 pub type CFStringRef = *const c_void;
 pub type CFURLRef = *const c_void;
@@ -377,27 +379,6 @@ unsafe extern "C" {
         should_interpolate: bool,
         intent: u32,
     ) -> CGImageRef;
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CGRect {
-    pub origin: CGPoint,
-    pub size: CGSize,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CGPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CGSize {
-    pub width: f64,
-    pub height: f64,
 }
 
 #[repr(C)]

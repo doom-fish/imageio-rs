@@ -182,15 +182,15 @@ pub fn cg_image_to_bgra(cg_image: ffi::CGImageRef) -> Result<DecodedImage, Image
             "CGBitmapContextCreate returned NULL".into(),
         ));
     }
-    let rect = ffi::CGRect {
-        origin: ffi::CGPoint { x: 0.0, y: 0.0 },
-        size: ffi::CGSize {
+    let rect = ffi::CGRect::with_origin_and_size(
+        ffi::CGPoint::zero(),
+        ffi::CGSize::new(
             #[allow(clippy::cast_precision_loss)]
-            width: width as f64,
+            width as f64,
             #[allow(clippy::cast_precision_loss)]
-            height: height as f64,
-        },
-    };
+            height as f64,
+        ),
+    );
     unsafe { ffi::CGContextDrawImage(ctx, rect, cg_image) };
     unsafe { ffi::CGContextRelease(ctx) };
     Ok(DecodedImage {
