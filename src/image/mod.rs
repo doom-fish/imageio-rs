@@ -10,19 +10,29 @@ use crate::source::ImageSource;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ImageFormat {
+    /// Uses the PNG type identifier accepted by `CGImageDestinationCreateWithURL`.
     Png,
+    /// Uses the JPEG type identifier accepted by `CGImageDestinationCreateWithURL`.
     Jpeg,
+    /// Uses the HEIC type identifier accepted by `CGImageDestinationCreateWithURL`.
     Heic,
+    /// Uses the HEIF type identifier accepted by `CGImageDestinationCreateWithURL`.
     Heif,
+    /// Uses the HEICS sequence type identifier accepted by `CGImageDestinationCreateWithURL`.
     Heics,
+    /// Uses the TIFF type identifier accepted by `CGImageDestinationCreateWithURL`.
     Tiff,
+    /// Uses the GIF type identifier accepted by `CGImageDestinationCreateWithURL`.
     Gif,
+    /// Uses the BMP type identifier accepted by `CGImageDestinationCreateWithURL`.
     Bmp,
+    /// Uses the DNG type identifier accepted by `CGImageDestinationCreateWithURL`.
     Dng,
 }
 
 impl ImageFormat {
     #[must_use]
+    /// Returns the destination type identifier passed to `CGImageDestinationCreateWithURL`.
     pub const fn type_identifier(self) -> &'static str {
         match self {
             Self::Png => "public.png",
@@ -41,13 +51,17 @@ impl ImageFormat {
 /// Tightly-packed BGRA image data.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedImage {
+    /// Pixel width reported by `CGImageGetWidth` for the decoded frame.
     pub width: usize,
+    /// Pixel height reported by `CGImageGetHeight` for the decoded frame.
     pub height: usize,
+    /// Tightly packed BGRA bytes decoded from `CGImageSourceCreateImageAtIndex`.
     pub bgra: Vec<u8>,
 }
 
 impl DecodedImage {
     #[must_use]
+    /// Returns the row stride used for `CGBitmapContextCreate`.
     pub const fn bytes_per_row(&self) -> usize {
         self.width * 4
     }
@@ -56,10 +70,15 @@ impl DecodedImage {
 /// Metadata read from an image source without forcing a full decode.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImageMetadata {
+    /// Pixel width read from `kCGImagePropertyPixelWidth`.
     pub width: usize,
+    /// Pixel height read from `kCGImagePropertyPixelHeight`.
     pub height: usize,
+    /// Frame count reported by `CGImageSourceGetCount`.
     pub frame_count: usize,
+    /// Whether `kCGImagePropertyHasAlpha` is set.
     pub has_alpha: bool,
+    /// Source type identifier reported by `CGImageSourceGetType`.
     pub source_format: Option<String>,
 }
 
@@ -87,11 +106,13 @@ fn read_metadata_from_source(source: &ImageSource) -> Result<ImageMetadata, Imag
     })
 }
 
+/// Reads header metadata using `CGImageSourceCopyPropertiesAtIndex`.
 pub fn read_metadata(path: impl AsRef<Path>) -> Result<ImageMetadata, ImageError> {
     let source = ImageSource::from_path(path)?;
     read_metadata_from_source(&source)
 }
 
+/// Decodes the first frame via `CGImageSourceCreateImageAtIndex`.
 pub fn decode_bgra(path: impl AsRef<Path>) -> Result<DecodedImage, ImageError> {
     let source = ImageSource::from_path(path)?;
     if source.frame_count() == 0 {
@@ -100,6 +121,7 @@ pub fn decode_bgra(path: impl AsRef<Path>) -> Result<DecodedImage, ImageError> {
     source.decode_image_at_index(0)
 }
 
+/// Decodes the first in-memory frame via `CGImageSourceCreateWithData`.
 pub fn decode_bgra_from_bytes(data: &[u8]) -> Result<DecodedImage, ImageError> {
     let source = ImageSource::from_bytes(data)?;
     if source.frame_count() == 0 {
@@ -108,6 +130,7 @@ pub fn decode_bgra_from_bytes(data: &[u8]) -> Result<DecodedImage, ImageError> {
     source.decode_image_at_index(0)
 }
 
+/// Encodes BGRA bytes with `CGImageDestinationCreateWithData`.
 pub fn encode_bgra_to_bytes(
     bgra: &[u8],
     width: usize,
@@ -127,6 +150,7 @@ pub fn encode_bgra_to_bytes(
     })
 }
 
+/// Re-encodes the first frame by pairing `CGImageSourceCreateWithURL` with `CGImageDestinationCreateWithURL`.
 pub fn convert_format(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,
@@ -141,6 +165,7 @@ pub fn convert_format(
     destination.finalize()
 }
 
+/// Copies a whole source with `CGImageDestinationCopyImageSource`.
 pub fn copy_image_source(
     input: impl AsRef<Path>,
     output: impl AsRef<Path>,

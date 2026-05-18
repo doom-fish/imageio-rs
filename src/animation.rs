@@ -38,6 +38,7 @@ where
     result
 }
 
+/// Wraps `CGAnimateImageAtURLWithBlock`.
 pub fn animate_image<F>(path: impl AsRef<Path>, callback: F) -> Result<(), ImageError>
 where
     F: FnMut(usize, DecodedImage) -> bool,
@@ -64,6 +65,7 @@ where
     }
 }
 
+/// Wraps `CGAnimateImageDataWithBlock`.
 pub fn animate_image_from_bytes<F>(data: &[u8], callback: F) -> Result<(), ImageError>
 where
     F: FnMut(usize, DecodedImage) -> bool,

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.2] - 2026-05-18
+
+### Changed
+
+- Added one-line rustdoc coverage across the public safe surface, documenting the exported ImageIO wrappers and helpers.
+
 ## [0.8.1] - 2026-05-18
 
 ### Changed

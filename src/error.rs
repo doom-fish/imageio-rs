@@ -4,13 +4,21 @@ use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
+/// Reports failures from safe wrappers around `ImageIO` entry points.
 pub enum ImageError {
+    /// The path could not be converted into the `CFURL` form used by `CGImageSourceCreateWithURL` or `CGImageDestinationCreateWithURL`.
     InvalidPath(String),
+    /// Opening a `CGImageSource` failed.
     OpenSourceFailed(String),
+    /// `CGImageSourceGetCount` reported that the source contains no images.
     NoImagesInSource,
+    /// A decode-oriented `ImageIO` call failed.
     DecodeFailed(String),
+    /// An encode-oriented `ImageIO` call failed.
     EncodeFailed(String),
+    /// The requested type identifier is not supported by the active `ImageIO` codecs.
     UnsupportedFormat(String),
+    /// `ImageIO` returned an error that does not fit a more specific category.
     Unknown(String),
 }
 

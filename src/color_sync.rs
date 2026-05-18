@@ -5,28 +5,42 @@ use crate::error::ImageError;
 use crate::properties::{ImageProperties, MutableProperties};
 use crate::source::ImageSource;
 
+/// Maps to the `kCGImagePropertyProfileName` entry.
 pub const PROFILE_NAME_KEY: &str = "ProfileName";
+/// Maps to the `kCGImageSourceDecodeRequest` option key.
 pub const SOURCE_DECODE_REQUEST_KEY: &str = "kCGImageSourceDecodeRequest";
+/// Maps to the `kCGImageSourceDecodeToHDR` decode request value.
 pub const SOURCE_DECODE_TO_HDR: &str = "kCGImageSourceDecodeToHDR";
+/// Maps to the `kCGImageSourceDecodeToSDR` decode request value.
 pub const SOURCE_DECODE_TO_SDR: &str = "kCGImageSourceDecodeToSDR";
+/// Maps to the `kCGImageSourceGenerateImageSpecificLumaScaling` option key.
 pub const SOURCE_GENERATE_IMAGE_SPECIFIC_LUMA_SCALING_KEY: &str =
     "kCGImageSourceGenerateImageSpecificLumaScaling";
+/// Maps to the `kCGImageDestinationOptimizeColorForSharing` option key.
 pub const DESTINATION_OPTIMIZE_COLOR_FOR_SHARING_KEY: &str =
     "kCGImageDestinationOptimizeColorForSharing";
+/// Maps to the `kCGImageDestinationPreserveGainMap` option key.
 pub const DESTINATION_PRESERVE_GAIN_MAP_KEY: &str = "kCGImageDestinationPreserveGainMap";
+/// Maps to the `kCGImageDestinationEncodeRequest` option key.
 pub const DESTINATION_ENCODE_REQUEST_KEY: &str = "kCGImageDestinationEncodeRequest";
+/// Maps to the `kCGImageDestinationEncodeToSDR` encode request value.
 pub const DESTINATION_ENCODE_TO_SDR: &str = "kCGImageDestinationEncodeToSDR";
+/// Maps to the `kCGImageDestinationEncodeToISOHDR` encode request value.
 pub const DESTINATION_ENCODE_TO_ISO_HDR: &str = "kCGImageDestinationEncodeToISOHDR";
+/// Maps to the `kCGImageDestinationEncodeToISOGainmap` encode request value.
 pub const DESTINATION_ENCODE_TO_ISO_GAINMAP: &str = "kCGImageDestinationEncodeToISOGainmap";
 
 /// Source decode request values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DecodeRequest {
+    /// Requests the `kCGImageSourceDecodeToHDR` decode path.
     Hdr,
+    /// Requests the `kCGImageSourceDecodeToSDR` decode path.
     Sdr,
 }
 
 impl DecodeRequest {
+    /// Returns the `kCGImageSourceDecodeRequest` value for this mode.
     #[must_use]
     pub const fn value(self) -> &'static str {
         match self {
@@ -39,12 +53,16 @@ impl DecodeRequest {
 /// Destination HDR encode request values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EncodeRequest {
+    /// Requests the `kCGImageDestinationEncodeToSDR` encode path.
     Sdr,
+    /// Requests the `kCGImageDestinationEncodeToISOHDR` encode path.
     IsoHdr,
+    /// Requests the `kCGImageDestinationEncodeToISOGainmap` encode path.
     IsoGainMap,
 }
 
 impl EncodeRequest {
+    /// Returns the `kCGImageDestinationEncodeRequest` value for this mode.
     #[must_use]
     pub const fn value(self) -> &'static str {
         match self {
@@ -56,10 +74,12 @@ impl EncodeRequest {
 }
 
 #[must_use]
+/// Reads the `kCGImagePropertyProfileName` value from a property dictionary.
 pub fn profile_name(properties: &ImageProperties) -> Option<String> {
     bridge::copy_string(unsafe { ffi::imageio_properties_copy_profile_name(properties.as_raw()) })
 }
 
+/// Wraps the source-side profile-name lookup used with `CGImageSourceCopyPropertiesAtIndex`.
 pub fn source_profile_name(
     source: &ImageSource,
     index: usize,
@@ -73,6 +93,7 @@ pub fn source_profile_name(
     Ok(bridge::copy_string(raw))
 }
 
+/// Sets `kCGImageSourceDecodeRequest`.
 pub fn set_decode_request(
     properties: &mut MutableProperties,
     request: DecodeRequest,
@@ -80,6 +101,7 @@ pub fn set_decode_request(
     properties.set_string(SOURCE_DECODE_REQUEST_KEY, request.value())
 }
 
+/// Sets `kCGImageDestinationEncodeRequest`.
 pub fn set_encode_request(
     properties: &mut MutableProperties,
     request: EncodeRequest,
@@ -87,6 +109,7 @@ pub fn set_encode_request(
     properties.set_string(DESTINATION_ENCODE_REQUEST_KEY, request.value())
 }
 
+/// Sets `kCGImageSourceGenerateImageSpecificLumaScaling`.
 pub fn set_generate_image_specific_luma_scaling(
     properties: &mut MutableProperties,
     enabled: bool,
@@ -94,6 +117,7 @@ pub fn set_generate_image_specific_luma_scaling(
     properties.set_bool(SOURCE_GENERATE_IMAGE_SPECIFIC_LUMA_SCALING_KEY, enabled)
 }
 
+/// Sets `kCGImageDestinationOptimizeColorForSharing`.
 pub fn set_optimize_color_for_sharing(
     properties: &mut MutableProperties,
     enabled: bool,
@@ -101,6 +125,7 @@ pub fn set_optimize_color_for_sharing(
     properties.set_bool(DESTINATION_OPTIMIZE_COLOR_FOR_SHARING_KEY, enabled)
 }
 
+/// Sets `kCGImageDestinationPreserveGainMap`.
 pub fn set_preserve_gain_map(
     properties: &mut MutableProperties,
     enabled: bool,

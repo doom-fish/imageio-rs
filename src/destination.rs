@@ -10,9 +10,7 @@ use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 use crate::source::ImageSource;
 
-// Re-export apple-cf's CGImage so callers can pass it to add_cg_image without
-// having to add apple-cf to their own dependencies, and so docs link to the
-// authoritative type rather than a synonym.
+/// Re-exports Apple's `CGImage` for direct `CGImageDestinationAddImage` interop.
 pub use apple_cf::cg::CGImage;
 
 /// Owned destination handle.
@@ -27,10 +25,12 @@ impl ImageDestination {
     }
 
     #[must_use]
+    /// Wraps `CGImageDestinationCopyTypeIdentifiers`.
     pub fn type_identifiers() -> Vec<String> {
         bridge::copy_string_array(unsafe { ffi::imageio_destination_copy_type_identifiers() })
     }
 
+    /// Wraps `CGImageDestinationCreateWithURL`.
     pub fn to_path(
         path: impl AsRef<Path>,
         type_identifier: &str,
@@ -56,6 +56,7 @@ impl ImageDestination {
         })
     }
 
+    /// Wraps `CGImageDestinationCreateWithData`.
     pub fn to_data(type_identifier: &str, image_count: usize) -> Result<Self, ImageError> {
         let type_identifier = bridge::cstring(type_identifier)?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -75,10 +76,12 @@ impl ImageDestination {
         })
     }
 
+    /// Wraps `CGImageDestinationSetProperties`.
     pub fn set_properties(&mut self, properties: &ImageProperties) {
         unsafe { ffi::imageio_destination_set_properties(self.raw, properties.as_raw()) };
     }
 
+    /// Adds a BGRA frame via `CGImageDestinationAddImage`.
     pub fn add_image(
         &mut self,
         image: &DecodedImage,
@@ -115,6 +118,7 @@ impl ImageDestination {
         }
     }
 
+    /// Adds a BGRA frame and `CGImageMetadataRef` via `CGImageDestinationAddImageAndMetadata`.
     pub fn add_image_with_metadata(
         &mut self,
         image: &DecodedImage,
@@ -191,6 +195,7 @@ impl ImageDestination {
         }
     }
 
+    /// Wraps `CGImageDestinationAddImageFromSource`.
     pub fn add_image_from_source(
         &mut self,
         source: &ImageSource,
@@ -219,6 +224,7 @@ impl ImageDestination {
         }
     }
 
+    /// Wraps `CGImageDestinationCopyImageSource`.
     pub fn copy_image_source(
         &mut self,
         source: &ImageSource,
@@ -245,6 +251,7 @@ impl ImageDestination {
         }
     }
 
+    /// Wraps `CGImageDestinationAddAuxiliaryDataInfo`.
     pub fn add_auxiliary_data_info(
         &mut self,
         auxiliary_type: AuxiliaryDataType,
@@ -271,6 +278,7 @@ impl ImageDestination {
         }
     }
 
+    /// Wraps `CGImageDestinationFinalize`.
     pub fn finalize(&mut self) -> Result<(), ImageError> {
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_finalize(self.raw, buffer, size)
@@ -287,6 +295,7 @@ impl ImageDestination {
     }
 
     #[must_use]
+    /// Returns the in-memory output produced by `CGImageDestinationCreateWithData`.
     pub fn data(&self) -> Option<Vec<u8>> {
         let data = unsafe { ffi::imageio_destination_copy_data(self.raw) };
         (!data.is_null()).then(|| bridge::copy_data(data))

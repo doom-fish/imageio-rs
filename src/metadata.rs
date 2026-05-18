@@ -11,14 +11,23 @@ use crate::error::ImageError;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum MetadataType {
+    /// Matches `kCGImageMetadataTypeInvalid`.
     Invalid,
+    /// Matches `kCGImageMetadataTypeDefault`.
     Default,
+    /// Matches `kCGImageMetadataTypeString`.
     String,
+    /// Matches `kCGImageMetadataTypeArrayUnordered`.
     ArrayUnordered,
+    /// Matches `kCGImageMetadataTypeArrayOrdered`.
     ArrayOrdered,
+    /// Matches `kCGImageMetadataTypeAlternateArray`.
     AlternateArray,
+    /// Matches `kCGImageMetadataTypeAlternateText`.
     AlternateText,
+    /// Matches `kCGImageMetadataTypeStructure`.
     Structure,
+    /// Preserves an unknown `CGImageMetadataType` discriminator.
     Unknown(i32),
 }
 
@@ -41,21 +50,25 @@ impl From<i32> for MetadataType {
 /// Options for [`Metadata::enumerate_tags_with_options`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetadataEnumerateOptions {
+    /// Enables the `kCGImageMetadataEnumerateRecursively` option.
     pub recursive: bool,
 }
 
 impl MetadataEnumerateOptions {
     #[must_use]
+    /// Creates non-recursive metadata-enumeration options.
     pub const fn new() -> Self {
         Self { recursive: false }
     }
 
     #[must_use]
+    /// Creates recursive metadata-enumeration options.
     pub const fn recursive() -> Self {
         Self { recursive: true }
     }
 
     #[must_use]
+    /// Sets whether `CGImageMetadataEnumerateTagsUsingBlock` should recurse.
     pub const fn with_recursive(mut self, recursive: bool) -> Self {
         self.recursive = recursive;
         self
@@ -84,11 +97,13 @@ impl Metadata {
     }
 
     #[must_use]
+    /// Returns `kCFErrorDomainCGImageMetadata`.
     pub fn error_domain() -> String {
         bridge::copy_string(unsafe { ffi::imageio_metadata_error_domain() })
             .unwrap_or_else(|| "kCFErrorDomainCGImageMetadata".into())
     }
 
+    /// Wraps `CGImageMetadataCreateFromXMPData`.
     pub fn from_xmp_data(data: &[u8]) -> Result<Self, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_metadata_create_from_xmp_data(data.as_ptr(), data.len(), buffer, size)
@@ -102,6 +117,7 @@ impl Metadata {
         })
     }
 
+    /// Wraps `CGImageMetadataCreateXMPData`.
     pub fn create_xmp_data(&self) -> Result<Vec<u8>, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_metadata_create_xmp_data(self.raw, buffer, size)
@@ -117,6 +133,7 @@ impl Metadata {
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataCopyTags`.
     pub fn tags(&self) -> Vec<MetadataTag> {
         let array = unsafe { ffi::imageio_metadata_copy_tags(self.raw) };
         if array.is_null() {
@@ -135,6 +152,7 @@ impl Metadata {
         tags
     }
 
+    /// Wraps `CGImageMetadataCopyTagWithPath`.
     pub fn tag_with_path(&self, path: &str) -> Result<Option<MetadataTag>, ImageError> {
         let path = bridge::cstring(path)?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -146,6 +164,7 @@ impl Metadata {
         Ok(MetadataTag::from_raw(raw))
     }
 
+    /// Wraps `CGImageMetadataCopyStringValueWithPath`.
     pub fn string_value_with_path(&self, path: &str) -> Result<Option<String>, ImageError> {
         let path = bridge::cstring(path)?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -157,6 +176,7 @@ impl Metadata {
         Ok(bridge::copy_string(raw))
     }
 
+    /// Wraps `CGImageMetadataEnumerateTagsUsingBlock` with default options.
     pub fn enumerate_tags<F>(&self, root_path: Option<&str>, callback: F) -> Result<(), ImageError>
     where
         F: FnMut(String, MetadataTag) -> bool,
@@ -164,6 +184,7 @@ impl Metadata {
         self.enumerate_tags_with_options(root_path, MetadataEnumerateOptions::default(), callback)
     }
 
+    /// Wraps `CGImageMetadataEnumerateTagsUsingBlock` with explicit options.
     pub fn enumerate_tags_with_options<F>(
         &self,
         root_path: Option<&str>,
@@ -245,6 +266,7 @@ pub struct MutableMetadata {
 }
 
 impl MutableMetadata {
+    /// Wraps `CGImageMetadataCreateMutable`.
     pub fn new() -> Result<Self, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_mutable_metadata_create(buffer, size)
@@ -258,6 +280,7 @@ impl MutableMetadata {
         })
     }
 
+    /// Creates a mutable copy with `CGImageMetadataCreateMutableCopy`.
     pub fn copy_from(metadata: &Metadata) -> Result<Self, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_mutable_metadata_create_copy(metadata.as_raw(), buffer, size)
@@ -272,11 +295,13 @@ impl MutableMetadata {
     }
 
     #[must_use]
+    /// Converts this mutable tree into an immutable `CGImageMetadataRef`.
     pub fn into_metadata(self) -> Metadata {
         let raw = unsafe { ffi::imageio_mutable_metadata_into_immutable(self.raw) };
         Metadata::from_raw(raw).unwrap_or_else(|| Metadata { raw: self.raw })
     }
 
+    /// Wraps `CGImageMetadataRegisterNamespaceForPrefix`.
     pub fn register_namespace_for_prefix(
         &mut self,
         xmlns: &str,
@@ -304,6 +329,7 @@ impl MutableMetadata {
         }
     }
 
+    /// Wraps `CGImageMetadataSetTagWithPath`.
     pub fn set_tag_with_path(&mut self, path: &str, tag: &MetadataTag) -> Result<(), ImageError> {
         let path = bridge::cstring(path)?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -326,6 +352,7 @@ impl MutableMetadata {
         }
     }
 
+    /// Wraps `CGImageMetadataSetValueWithPath` for string payloads.
     pub fn set_string_value_with_path(
         &mut self,
         path: &str,
@@ -353,6 +380,7 @@ impl MutableMetadata {
         }
     }
 
+    /// Wraps `CGImageMetadataRemoveTagWithPath`.
     pub fn remove_tag_with_path(&mut self, path: &str) -> Result<(), ImageError> {
         let path = bridge::cstring(path)?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -399,6 +427,7 @@ impl MetadataTag {
         self.raw
     }
 
+    /// Wraps `CGImageMetadataTagCreate` for string-valued tags.
     pub fn new_string(
         xmlns: &str,
         prefix: Option<&str>,
@@ -431,31 +460,37 @@ impl MetadataTag {
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagCopyNamespace`.
     pub fn namespace(&self) -> Option<String> {
         bridge::copy_string(unsafe { ffi::imageio_metadata_tag_copy_namespace(self.raw) })
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagCopyPrefix`.
     pub fn prefix(&self) -> Option<String> {
         bridge::copy_string(unsafe { ffi::imageio_metadata_tag_copy_prefix(self.raw) })
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagCopyName`.
     pub fn name(&self) -> Option<String> {
         bridge::copy_string(unsafe { ffi::imageio_metadata_tag_copy_name(self.raw) })
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagCopyValue` for string payloads.
     pub fn string_value(&self) -> Option<String> {
         bridge::copy_string(unsafe { ffi::imageio_metadata_tag_copy_string_value(self.raw) })
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagGetType`.
     pub fn tag_type(&self) -> MetadataType {
         unsafe { ffi::imageio_metadata_tag_get_type(self.raw) }.into()
     }
 
     #[must_use]
+    /// Wraps `CGImageMetadataTagCopyQualifiers`.
     pub fn qualifiers(&self) -> Vec<Self> {
         let array = unsafe { ffi::imageio_metadata_tag_copy_qualifiers(self.raw) };
         if array.is_null() {

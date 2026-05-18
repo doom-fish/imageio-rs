@@ -5,18 +5,23 @@ use crate::error::ImageError;
 use crate::image::DecodedImage;
 use crate::source::ImageSource;
 
+/// Maps to the `kCGImagePropertyThumbnailImages` entry.
 pub const THUMBNAIL_IMAGES_KEY: &str = "ThumbnailImages";
 
 /// Options for `CGImageSourceCreateThumbnailAtIndex`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ThumbnailOptions {
+    /// Sets `kCGImageSourceThumbnailMaxPixelSize`.
     pub max_pixel_size: usize,
+    /// Sets `kCGImageSourceCreateThumbnailFromImageAlways`.
     pub always_create: bool,
+    /// Sets `kCGImageSourceCreateThumbnailWithTransform`.
     pub transform: bool,
 }
 
 impl ThumbnailOptions {
     #[must_use]
+    /// Creates default thumbnail options for `CGImageSourceCreateThumbnailAtIndex`.
     pub const fn new(max_pixel_size: usize) -> Self {
         Self {
             max_pixel_size,
@@ -32,6 +37,7 @@ impl Default for ThumbnailOptions {
     }
 }
 
+/// Wraps `CGImageSourceCreateThumbnailAtIndex`.
 pub fn create_thumbnail(
     source: &ImageSource,
     index: usize,
