@@ -17,10 +17,8 @@ pub use apple_cf::cg::{CGPoint, CGRect, CGSize};
 pub use apple_cf::raw::{
     CFAllocatorRef, CFArrayRef, CFBooleanRef, CFDataRef, CFDictionaryRef, CFErrorRef, CFIndex,
     CFMutableDataRef, CFNumberRef, CFRange, CFRunLoopRef, CFStringRef, CFTypeID, CFTypeRef,
-    CFURLRef, CGContextRef, CGColorSpaceRef,
+    CFURLRef, CGContextRef, CGColorSpaceRef, OSStatus,
 };
-
-pub type OSStatus = i32;
 
 pub type CGImageRef = *mut c_void;
 pub type CGImageSourceRef = *mut c_void;

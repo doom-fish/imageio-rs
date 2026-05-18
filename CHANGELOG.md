@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1] - 2026-05-18
+
+### Changed
+
+- chore: re-export OS primitives (OSStatus) from apple-cf
+
 ## [0.8.0] - 2026-05-18
 
 ### Changed
