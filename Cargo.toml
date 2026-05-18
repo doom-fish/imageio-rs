@@ -1,6 +1,6 @@
 [package]
 name = "imageio"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
@@ -42,7 +42,7 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
-apple-cf = { version = "0.6", default-features = false, features = ["cg"] }
+apple-cf = { version = ">=0.7, <0.9", default-features = false, features = ["cg"] }
 doom-fish-utils = { version = ">=0.1, <0.3", default-features = false }
 
 [dev-dependencies]

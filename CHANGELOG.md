@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.0] - 2026-05-18
+
+### Changed
+
+- Re-bump for `apple-cf` 0.8.0 nested `CGRect` — the re-exported `CGRect` type now has `{ origin, size }` nested fields instead of flat `{ x, y, width, height }`.
+
 ## [0.5.0] - 2026-05-18
 
 ### Changed
