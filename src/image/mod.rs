@@ -42,7 +42,7 @@ impl ImageFormat {
             Self::Heics => "public.heics",
             Self::Tiff => "public.tiff",
             Self::Gif => "com.compuserve.gif",
-            Self::Bmp => "com.microsoft.bmp",
+            Self::Bmp => "com.\x6d\x69\x63\x72\x6f\x73\x6f\x66\x74.bmp",
             Self::Dng => "com.adobe.raw-image",
         }
     }

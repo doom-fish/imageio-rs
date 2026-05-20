@@ -9,6 +9,9 @@
 
 pub mod animated_png;
 pub mod animation;
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
 pub mod auxiliary_data;
 pub(crate) mod bridge;
 pub mod color_sync;
@@ -47,6 +50,10 @@ pub use thumbnail::{create_thumbnail, ThumbnailOptions};
 pub mod prelude {
     pub use crate::animated_png::{AnimatedPngBuilder, AnimatedPngProperties};
     pub use crate::animation::{animate_image, animate_image_from_bytes};
+    #[cfg(feature = "async")]
+    pub use crate::async_api::{
+        IncrementalDecodeStream, IncrementalDecodeUpdate, IncrementalImageDecoder,
+    };
     pub use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
     pub use crate::color_sync::{self, DecodeRequest, EncodeRequest};
     pub use crate::destination::ImageDestination;

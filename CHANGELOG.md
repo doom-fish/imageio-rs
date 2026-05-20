@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0] - 2026-05-20
+
+### Added
+
+- Added feature-gated `async_api::IncrementalImageDecoder`, an executor-agnostic incremental decode helper that snapshots `CGImageSource` status and progressive thumbnail availability after each `CGImageSourceUpdateData` call.
+- Added `examples/11_async_incremental_decoder.rs` and `tests/async_api_tests.rs` covering the new incremental async surface with `pollster::block_on`.
+
+### Changed
+
+- Documented the new `async` cargo feature and its verification flow in the README.
+
 ## [0.8.3] - 2026-05-20
 
 - Widen `doom-fish-utils` dependency bound to `<0.4` so the 0.3.x SPSC-ring release resolves cleanly. No source changes.

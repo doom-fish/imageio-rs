@@ -2,10 +2,11 @@
 
 Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** `imageio` `0.4.1` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
+> **Status:** `imageio` `0.9.0` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
 >
 > - the default build compiles a tiny SwiftPM bridge from `swift-bridge/`
 > - ergonomic safe modules cover Source, Destination, Properties, Metadata, AuxiliaryData, ColorSync, AnimatedPNG, HEIF, `ProRAW`, and Thumbnail workflows
+> - the optional `async` feature adds `async_api::IncrementalImageDecoder` for executor-agnostic progressive incremental decode updates
 > - the optional `raw-ffi` feature preserves the audited C header surface in `imageio::ffi`
 > - [`COVERAGE.md`](COVERAGE.md) tracks the audited rows from `CGImageSource.h`, `CGImageDestination.h`, `CGImageAnimation.h`, `CGImageMetadata.h`, and `CGImageProperties.h`
 
@@ -28,6 +29,7 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 | HEIF | `heif` | `HEIF.swift` | `08_heif` |
 | `ProRAW` | `proraw` | `ProRAW.swift` | `09_proraw` |
 | Thumbnail | `thumbnail` | `Thumbnail.swift` | `10_thumbnail` |
+| Async incremental decode | `async_api` | Rust-only | `11_async_incremental_decoder` |
 
 ## High-level helpers
 
@@ -42,6 +44,7 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 - `ImageProperties` / `MutableProperties` plus typed APNG / HEIF / `ProRAW` / color helpers
 - `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, and `MetadataTag` for XMP workflows
 - `create_thumbnail`, `animate_image`, and `animate_image_from_bytes`
+- `async_api::IncrementalImageDecoder` (feature = `async`) for progressive thumbnail snapshots from incremental sources
 
 ## Quick start
 
@@ -82,12 +85,14 @@ The numbered smoke examples cover every logical area and all exit successfully o
 - `08_heif`
 - `09_proraw`
 - `10_thumbnail`
+- `11_async_incremental_decoder` (requires `--features async`)
 
 Shared example output is written under `target/example-output`.
 
 ## Features
 
 - default: safe Rust API backed by the Swift bridge in `swift-bridge/`
+- `async`: enable `imageio::async_api::IncrementalImageDecoder` and its executor-agnostic progress stream
 - `raw-ffi`: export the audited `ImageIO` C declarations in `imageio::ffi`
 
 ## Verification
@@ -95,11 +100,11 @@ Shared example output is written under `target/example-output`.
 The crate is verified with:
 
 ```bash
-cargo clippy --all-targets -- -D warnings
-cargo test
+cargo build --all-features
 cargo clippy --all-targets --all-features -- -D warnings
-cargo test --features raw-ffi
-for ex in examples/*.rs; do cargo run --example "$(basename "$ex" .rs)"; done
+cargo test --all-features
+for ex in {01_source_overview,02_destination_roundtrip,03_properties_view,04_metadata_roundtrip,05_auxiliary_data,06_color_sync,07_animated_png,08_heif,09_proraw,10_thumbnail}; do cargo run --example "$ex"; done
+cargo run --example 11_async_incremental_decoder --features async
 ```
 
 ## License

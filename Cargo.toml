@@ -1,6 +1,6 @@
 [package]
 name = "imageio"
-version = "0.8.3"
+version = "0.9.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
@@ -28,6 +28,7 @@ include = [
 
 [features]
 default = []
+async = []
 raw-ffi = []
 
 [lints.rust]
@@ -46,6 +47,7 @@ apple-cf = { version = ">=0.9, <0.10", default-features = false, features = ["cg
 doom-fish-utils = { version = ">=0.1, <0.4", default-features = false }
 
 [dev-dependencies]
+pollster = "0.3"
 regex-lite = "0.1"
 
 [package.metadata.docs.rs]
@@ -56,6 +58,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [badges]
 maintenance = { status = "actively-developed" }
+
+[[example]]
+name = "11_async_incremental_decoder"
+required-features = ["async"]
 
 [profile.release]
 debug = "full"
