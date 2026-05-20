@@ -37,3 +37,52 @@ impl fmt::Display for ImageError {
 }
 
 impl std::error::Error for ImageError {}
+
+#[cfg(test)]
+mod tests {
+    use super::ImageError;
+
+    #[test]
+    fn display_formats_path_and_source_open_errors() {
+        assert_eq!(
+            ImageError::InvalidPath("bad path".to_owned()).to_string(),
+            "invalid path: bad path"
+        );
+        assert_eq!(
+            ImageError::OpenSourceFailed("decoder unavailable".to_owned()).to_string(),
+            "open source failed: decoder unavailable"
+        );
+    }
+
+    #[test]
+    fn display_formats_decode_and_encode_errors() {
+        assert_eq!(
+            ImageError::DecodeFailed("bad pixels".to_owned()).to_string(),
+            "decode failed: bad pixels"
+        );
+        assert_eq!(
+            ImageError::EncodeFailed("writer rejected frame".to_owned()).to_string(),
+            "encode failed: writer rejected frame"
+        );
+    }
+
+    #[test]
+    fn display_formats_unsupported_and_unknown_errors() {
+        assert_eq!(
+            ImageError::UnsupportedFormat("public.heics".to_owned()).to_string(),
+            "unsupported format: public.heics"
+        );
+        assert_eq!(
+            ImageError::Unknown("bridge returned NULL".to_owned()).to_string(),
+            "imageio error: bridge returned NULL"
+        );
+    }
+
+    #[test]
+    fn no_images_in_source_has_specific_message() {
+        assert_eq!(
+            ImageError::NoImagesInSource.to_string(),
+            "image source contains zero images"
+        );
+    }
+}

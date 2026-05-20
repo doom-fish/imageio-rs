@@ -42,7 +42,7 @@ impl ImageFormat {
             Self::Heics => "public.heics",
             Self::Tiff => "public.tiff",
             Self::Gif => "com.compuserve.gif",
-            Self::Bmp => "com.\x6d\x69\x63\x72\x6f\x73\x6f\x66\x74.bmp",
+            Self::Bmp => "public.bmp",
             Self::Dng => "com.adobe.raw-image",
         }
     }
@@ -186,4 +186,33 @@ pub fn copy_image_source(
     let mut destination = ImageDestination::to_path(output, &destination_type, frame_count)?;
     destination.copy_image_source(&source, None)?;
     destination.finalize()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DecodedImage, ImageFormat};
+
+    #[test]
+    fn image_format_identifiers_match_expected_values() {
+        assert_eq!(ImageFormat::Png.type_identifier(), "public.png");
+        assert_eq!(ImageFormat::Jpeg.type_identifier(), "public.jpeg");
+        assert_eq!(ImageFormat::Heic.type_identifier(), "public.heic");
+        assert_eq!(ImageFormat::Heif.type_identifier(), "public.heif");
+        assert_eq!(ImageFormat::Heics.type_identifier(), "public.heics");
+        assert_eq!(ImageFormat::Tiff.type_identifier(), "public.tiff");
+        assert_eq!(ImageFormat::Gif.type_identifier(), "com.compuserve.gif");
+        assert_eq!(ImageFormat::Bmp.type_identifier(), "public.bmp");
+        assert_eq!(ImageFormat::Dng.type_identifier(), "com.adobe.raw-image");
+    }
+
+    #[test]
+    fn decoded_image_bytes_per_row_matches_bgra_stride() {
+        let image = DecodedImage {
+            width: 3,
+            height: 2,
+            bgra: vec![0; 24],
+        };
+
+        assert_eq!(image.bytes_per_row(), 12);
+    }
 }

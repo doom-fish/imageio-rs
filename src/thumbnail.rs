@@ -71,3 +71,22 @@ pub fn create_thumbnail(
         bgra: bridge::copy_data(raw),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ThumbnailOptions;
+
+    #[test]
+    fn thumbnail_options_new_enables_creation_and_transform() {
+        let options = ThumbnailOptions::new(512);
+
+        assert_eq!(options.max_pixel_size, 512);
+        assert!(options.always_create);
+        assert!(options.transform);
+    }
+
+    #[test]
+    fn thumbnail_options_default_matches_new_256() {
+        assert_eq!(ThumbnailOptions::default(), ThumbnailOptions::new(256));
+    }
+}

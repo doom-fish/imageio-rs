@@ -132,3 +132,47 @@ pub fn set_preserve_gain_map(
 ) -> Result<(), ImageError> {
     properties.set_bool(DESTINATION_PRESERVE_GAIN_MAP_KEY, enabled)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        DecodeRequest, EncodeRequest, DESTINATION_ENCODE_REQUEST_KEY,
+        DESTINATION_ENCODE_TO_ISO_GAINMAP, DESTINATION_ENCODE_TO_ISO_HDR,
+        DESTINATION_ENCODE_TO_SDR, DESTINATION_OPTIMIZE_COLOR_FOR_SHARING_KEY,
+        DESTINATION_PRESERVE_GAIN_MAP_KEY, PROFILE_NAME_KEY, SOURCE_DECODE_REQUEST_KEY,
+        SOURCE_DECODE_TO_HDR, SOURCE_DECODE_TO_SDR,
+        SOURCE_GENERATE_IMAGE_SPECIFIC_LUMA_SCALING_KEY,
+    };
+
+    #[test]
+    fn decode_request_values_match_expected_constants() {
+        assert_eq!(DecodeRequest::Hdr.value(), SOURCE_DECODE_TO_HDR);
+        assert_eq!(DecodeRequest::Sdr.value(), SOURCE_DECODE_TO_SDR);
+    }
+
+    #[test]
+    fn encode_request_values_match_expected_constants() {
+        assert_eq!(EncodeRequest::Sdr.value(), DESTINATION_ENCODE_TO_SDR);
+        assert_eq!(EncodeRequest::IsoHdr.value(), DESTINATION_ENCODE_TO_ISO_HDR);
+        assert_eq!(EncodeRequest::IsoGainMap.value(), DESTINATION_ENCODE_TO_ISO_GAINMAP);
+    }
+
+    #[test]
+    fn color_sync_property_keys_match_expected_names() {
+        assert_eq!(PROFILE_NAME_KEY, "ProfileName");
+        assert_eq!(SOURCE_DECODE_REQUEST_KEY, "kCGImageSourceDecodeRequest");
+        assert_eq!(
+            SOURCE_GENERATE_IMAGE_SPECIFIC_LUMA_SCALING_KEY,
+            "kCGImageSourceGenerateImageSpecificLumaScaling"
+        );
+        assert_eq!(DESTINATION_ENCODE_REQUEST_KEY, "kCGImageDestinationEncodeRequest");
+        assert_eq!(
+            DESTINATION_OPTIMIZE_COLOR_FOR_SHARING_KEY,
+            "kCGImageDestinationOptimizeColorForSharing"
+        );
+        assert_eq!(
+            DESTINATION_PRESERVE_GAIN_MAP_KEY,
+            "kCGImageDestinationPreserveGainMap"
+        );
+    }
+}

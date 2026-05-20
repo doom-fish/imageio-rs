@@ -523,3 +523,63 @@ impl Drop for MetadataTag {
         bridge::release(self.raw);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{MetadataEnumerateOptions, MetadataType};
+    use crate::ffi;
+
+    #[test]
+    fn metadata_type_maps_known_numeric_values() {
+        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeInvalid), MetadataType::Invalid);
+        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeDefault), MetadataType::Default);
+        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeString), MetadataType::String);
+        assert_eq!(
+            MetadataType::from(ffi::kCGImageMetadataTypeArrayUnordered),
+            MetadataType::ArrayUnordered
+        );
+        assert_eq!(
+            MetadataType::from(ffi::kCGImageMetadataTypeArrayOrdered),
+            MetadataType::ArrayOrdered
+        );
+        assert_eq!(
+            MetadataType::from(ffi::kCGImageMetadataTypeAlternateArray),
+            MetadataType::AlternateArray
+        );
+        assert_eq!(
+            MetadataType::from(ffi::kCGImageMetadataTypeAlternateText),
+            MetadataType::AlternateText
+        );
+        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeStructure), MetadataType::Structure);
+    }
+
+    #[test]
+    fn metadata_type_preserves_unknown_numeric_values() {
+        assert_eq!(MetadataType::from(77), MetadataType::Unknown(77));
+        assert_eq!(MetadataType::from(-99), MetadataType::Unknown(-99));
+    }
+
+    #[test]
+    fn metadata_enumerate_options_default_is_non_recursive() {
+        let options = MetadataEnumerateOptions::default();
+
+        assert_eq!(options, MetadataEnumerateOptions::new());
+        assert!(!options.recursive);
+    }
+
+    #[test]
+    fn metadata_enumerate_options_builder_toggles_recursive_flag() {
+        assert_eq!(
+            MetadataEnumerateOptions::recursive(),
+            MetadataEnumerateOptions { recursive: true }
+        );
+        assert_eq!(
+            MetadataEnumerateOptions::new().with_recursive(true),
+            MetadataEnumerateOptions::recursive()
+        );
+        assert_eq!(
+            MetadataEnumerateOptions::recursive().with_recursive(false),
+            MetadataEnumerateOptions::new()
+        );
+    }
+}
