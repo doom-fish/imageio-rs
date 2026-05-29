@@ -15,7 +15,6 @@ let package = Package(
     targets: [
         .target(
             name: "ImageIOBridge",
-            path: "Sources/ImageIOBridge",
-            publicHeadersPath: "include")
+            path: "Sources/ImageIOBridge")
     ]
 )

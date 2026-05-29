@@ -245,19 +245,7 @@ impl Metadata {
     }
 }
 
-impl Clone for Metadata {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for Metadata {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(Metadata);
 
 /// Mutable metadata tree.
 #[derive(Debug)]
@@ -398,19 +386,7 @@ impl MutableMetadata {
     }
 }
 
-impl Clone for MutableMetadata {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for MutableMetadata {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(MutableMetadata);
 
 /// Owned metadata tag.
 #[derive(Debug)]
@@ -510,19 +486,7 @@ impl MetadataTag {
     }
 }
 
-impl Clone for MetadataTag {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for MetadataTag {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(MetadataTag);
 
 #[cfg(test)]
 mod tests {

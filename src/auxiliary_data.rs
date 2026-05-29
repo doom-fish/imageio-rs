@@ -124,16 +124,4 @@ impl AuxiliaryDataInfo {
     }
 }
 
-impl Clone for AuxiliaryDataInfo {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for AuxiliaryDataInfo {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(AuxiliaryDataInfo);

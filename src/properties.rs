@@ -71,19 +71,7 @@ impl ImageProperties {
     }
 }
 
-impl Clone for ImageProperties {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for ImageProperties {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(ImageProperties);
 
 /// Mutable property dictionary builder.
 #[derive(Debug)]
@@ -149,16 +137,4 @@ impl MutableProperties {
     }
 }
 
-impl Clone for MutableProperties {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for MutableProperties {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(MutableProperties);

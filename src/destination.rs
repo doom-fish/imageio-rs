@@ -302,8 +302,4 @@ impl ImageDestination {
     }
 }
 
-impl Drop for ImageDestination {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(ImageDestination, drop_only);

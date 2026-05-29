@@ -250,19 +250,7 @@ impl ImageSource {
     }
 }
 
-impl Clone for ImageSource {
-    fn clone(&self) -> Self {
-        Self {
-            raw: bridge::retain(self.raw),
-        }
-    }
-}
-
-impl Drop for ImageSource {
-    fn drop(&mut self) {
-        bridge::release(self.raw);
-    }
-}
+crate::bridge::retained::imageio_retained!(ImageSource);
 
 #[cfg(test)]
 mod tests {
