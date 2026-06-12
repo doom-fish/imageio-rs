@@ -63,7 +63,7 @@ pub struct ImageMetadata {
     pub source_format: Option<String>,
 }
 
-fn read_metadata_from_source(source: &ImageSource) -> Result<ImageMetadata, ImageError> {
+pub fn read_metadata_from_source(source: &ImageSource) -> Result<ImageMetadata, ImageError> {
     let frame_count = source.frame_count();
     if frame_count == 0 {
         return Err(ImageError::NoImagesInSource);

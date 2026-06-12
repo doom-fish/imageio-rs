@@ -54,7 +54,8 @@ pub mod prelude {
     pub use crate::heif::{HeifBuilder, HeifProperties};
     pub use crate::image::{
         convert_format, copy_image_source, decode_bgra, decode_bgra_from_bytes,
-        encode_bgra_to_bytes, read_metadata, DecodedImage, ImageFormat, ImageMetadata,
+        encode_bgra_to_bytes, read_metadata, read_metadata_from_source, DecodedImage, ImageFormat,
+        ImageMetadata,
     };
     pub use crate::metadata::{
         Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
