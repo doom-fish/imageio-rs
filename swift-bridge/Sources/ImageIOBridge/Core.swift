@@ -34,12 +34,15 @@ func errorMessage(_ error: Error) -> String {
     (error as NSError).localizedDescription
 }
 
+/// `premultipliedFirst | byteOrder32Little` is the little-endian ARGB word that
+/// lays out as B, G, R, A in memory — the packing Core Video calls `32BGRA`.
+private let bgraBitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)
+    .union(.byteOrder32Little)
+
 func decodeCGImageToBGRA(_ image: CGImage) -> Data? {
     let width = image.width
     let height = image.height
     let bytesPerRow = width * 4
-    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
-        .union(.byteOrder32Big)
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     var data = Data(count: bytesPerRow * height)
     let drew = data.withUnsafeMutableBytes { bytes in
@@ -53,7 +56,7 @@ func decodeCGImageToBGRA(_ image: CGImage) -> Data? {
             bitsPerComponent: 8,
             bytesPerRow: bytesPerRow,
             space: colorSpace,
-            bitmapInfo: bitmapInfo.rawValue
+            bitmapInfo: bgraBitmapInfo.rawValue
         ) else {
             return false
         }
@@ -86,8 +89,6 @@ func makeCGImage(
         return nil
     }
     let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
-        .union(.byteOrder32Big)
     return CGImage(
         width: width,
         height: height,
@@ -95,7 +96,7 @@ func makeCGImage(
         bitsPerPixel: 32,
         bytesPerRow: width * 4,
         space: colorSpace,
-        bitmapInfo: bitmapInfo,
+        bitmapInfo: bgraBitmapInfo,
         provider: provider,
         decode: nil,
         shouldInterpolate: true,

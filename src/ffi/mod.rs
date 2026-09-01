@@ -69,7 +69,9 @@ pub const kCFNumberSInt64Type: i64 = 4;
 
 // CGBitmapInfo / alpha-info constants.
 pub const kCGImageAlphaPremultipliedLast: u32 = 1;
+pub const kCGImageAlphaPremultipliedFirst: u32 = 2;
 pub const kCGImageAlphaNoneSkipLast: u32 = 5;
+pub const kCGBitmapByteOrder32Little: u32 = 2 << 12;
 pub const kCGBitmapByteOrder32Big: u32 = 4 << 12;
 
 unsafe extern "C" {

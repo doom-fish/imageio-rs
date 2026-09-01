@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed BGRA buffers being read and written as RGBA. `decodeCGImageToBGRA`, `makeCGImage(fromBGRA:)`, and `cg_image_to_bgra` all declared `premultipliedLast | byteOrder32Big`, which is RGBA in memory, so every `DecodedImage.bgra` had its red and blue channels swapped. They now declare `premultipliedFirst | byteOrder32Little`, the packing Core Video calls `32BGRA`. Encode and decode were mutually consistent, so round-trips through this crate hid the swap; it only showed up against real BGRA sources such as `ScreenCaptureKit`.
+
 ## [0.9.1] - 2026-05-20
 
 - Added in-`src/` unit tests across `color_sync`, `error`, `image`, `metadata`, `source`, and `thumbnail` (Tier 2 quality polish), providing fast `cargo test --lib` fail-fast signal alongside the existing integration tests under `tests/`.

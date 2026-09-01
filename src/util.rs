@@ -173,7 +173,7 @@ pub fn cg_image_to_bgra(cg_image: ffi::CGImageRef) -> Result<DecodedImage, Image
             8,
             bytes_per_row,
             cs,
-            ffi::kCGImageAlphaPremultipliedLast | ffi::kCGBitmapByteOrder32Big,
+            ffi::kCGImageAlphaPremultipliedFirst | ffi::kCGBitmapByteOrder32Little,
         )
     };
     unsafe { ffi::CGColorSpaceRelease(cs) };
