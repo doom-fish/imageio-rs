@@ -1,5 +1,7 @@
 mod common;
 
+use std::fs;
+
 use imageio::prelude::*;
 
 #[test]
@@ -49,6 +51,96 @@ fn destination_add_cg_image_accepts_apple_cf_cgimage() {
 
     // Suppress unused-source warning
     let _ = source;
+}
+
+#[test]
+fn whole_source_copy_writes_png_and_jpeg_without_finalize() {
+    for (format, extension) in [(ImageFormat::Png, "png"), (ImageFormat::Jpeg, "jpg")] {
+        let directory = common::work_dir(&format!("whole_source_copy_{extension}"));
+        let input = directory.join(format!("input.{extension}"));
+        let output = directory.join(format!("output.{extension}"));
+        let image = common::sample_image();
+        let encoded = encode_bgra_to_bytes(&image.bgra, image.width, image.height, format)
+            .expect("encode source image");
+        fs::write(&input, encoded).expect("write source image");
+
+        copy_image_source(&input, &output, Some(format)).expect("copy whole image source");
+
+        let copied = ImageSource::from_path(&output).expect("open copied image");
+        assert_eq!(copied.frame_count(), 1);
+        assert_eq!(copied.source_type(), Some(format.type_identifier().into()));
+    }
+}
+
+#[test]
+fn whole_source_copy_completes_destination_state() {
+    for format in [ImageFormat::Png, ImageFormat::Jpeg] {
+        let image = common::sample_image();
+        let encoded = encode_bgra_to_bytes(&image.bgra, image.width, image.height, format)
+            .expect("encode source image");
+        let source = ImageSource::from_bytes(&encoded).expect("open source image");
+        let mut destination =
+            ImageDestination::to_data(format.type_identifier(), 1).expect("create destination");
+
+        destination
+            .copy_image_source(&source, None)
+            .expect("copy source");
+        assert!(
+            !destination.data().expect("copied data").is_empty(),
+            "whole-source copy must write output immediately"
+        );
+        assert!(matches!(
+            destination.finalize(),
+            Err(ImageError::EncodeFailed(message)) if message.contains("already complete")
+        ));
+        assert!(matches!(
+            destination.add_image(&image, None),
+            Err(ImageError::EncodeFailed(message)) if message.contains("already complete")
+        ));
+    }
+}
+
+#[test]
+fn image_add_paths_share_checked_bgra_layout_validation() {
+    let metadata = common::sample_metadata();
+    let invalid_images = [
+        DecodedImage {
+            width: 0,
+            height: 1,
+            bgra: Vec::new(),
+        },
+        DecodedImage {
+            width: usize::MAX,
+            height: 1,
+            bgra: Vec::new(),
+        },
+        DecodedImage {
+            width: usize::MAX / 4 + 1,
+            height: 1,
+            bgra: Vec::new(),
+        },
+        DecodedImage {
+            width: 2,
+            height: 2,
+            bgra: vec![0; 15],
+        },
+    ];
+
+    for image in invalid_images {
+        let mut plain =
+            ImageDestination::to_data(ImageFormat::Png.type_identifier(), 1).expect("destination");
+        let plain_error = plain
+            .add_image(&image, None)
+            .expect_err("plain add must fail");
+
+        let mut with_metadata =
+            ImageDestination::to_data(ImageFormat::Png.type_identifier(), 1).expect("destination");
+        let metadata_error = with_metadata
+            .add_image_with_metadata(&image, &metadata, None)
+            .expect_err("metadata add must fail");
+
+        assert_eq!(plain_error, metadata_error);
+    }
 }
 
 /// Decode the first frame of `bytes` into an `apple-cf` `CGImage` via the

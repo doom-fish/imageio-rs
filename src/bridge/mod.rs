@@ -5,6 +5,7 @@ pub mod common;
 pub mod destination;
 pub mod metadata;
 pub mod properties;
+pub mod proraw;
 pub mod retained;
 pub mod source;
 pub mod thumbnail;

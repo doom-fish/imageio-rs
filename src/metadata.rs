@@ -254,6 +254,19 @@ pub struct MutableMetadata {
 }
 
 impl MutableMetadata {
+    fn copy_from_raw(raw: Handle) -> Result<Self, ImageError> {
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_mutable_metadata_create_copy(raw, buffer, size)
+        });
+        (!raw.is_null()).then_some(Self { raw }).ok_or_else(|| {
+            ImageError::Unknown(if message.is_empty() {
+                "imageio_mutable_metadata_create_copy returned NULL".into()
+            } else {
+                message
+            })
+        })
+    }
+
     /// Wraps `CGImageMetadataCreateMutable`.
     pub fn new() -> Result<Self, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
@@ -270,23 +283,21 @@ impl MutableMetadata {
 
     /// Creates a mutable copy with `CGImageMetadataCreateMutableCopy`.
     pub fn copy_from(metadata: &Metadata) -> Result<Self, ImageError> {
+        Self::copy_from_raw(metadata.as_raw())
+    }
+
+    /// Deep-copies this mutable tree into an immutable metadata handle.
+    pub fn into_metadata(self) -> Result<Metadata, ImageError> {
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_mutable_metadata_create_copy(metadata.as_raw(), buffer, size)
+            ffi::imageio_mutable_metadata_into_immutable(self.raw, buffer, size)
         });
-        (!raw.is_null()).then_some(Self { raw }).ok_or_else(|| {
+        Metadata::from_raw(raw).ok_or_else(|| {
             ImageError::Unknown(if message.is_empty() {
-                "imageio_mutable_metadata_create_copy returned NULL".into()
+                "imageio_mutable_metadata_into_immutable returned NULL".into()
             } else {
                 message
             })
         })
-    }
-
-    #[must_use]
-    /// Converts this mutable tree into an immutable `CGImageMetadataRef`.
-    pub fn into_metadata(self) -> Metadata {
-        let raw = unsafe { ffi::imageio_mutable_metadata_into_immutable(self.raw) };
-        Metadata::from_raw(raw).unwrap_or_else(|| Metadata { raw: self.raw })
     }
 
     /// Wraps `CGImageMetadataRegisterNamespaceForPrefix`.
@@ -386,7 +397,14 @@ impl MutableMetadata {
     }
 }
 
-crate::bridge::retained::imageio_retained!(MutableMetadata);
+impl Clone for MutableMetadata {
+    fn clone(&self) -> Self {
+        Self::copy_from_raw(self.raw)
+            .unwrap_or_else(|error| panic!("failed to deep-copy mutable metadata: {error}"))
+    }
+}
+
+crate::bridge::retained::imageio_retained!(MutableMetadata, drop_only);
 
 /// Owned metadata tag.
 #[derive(Debug)]
@@ -491,30 +509,17 @@ crate::bridge::retained::imageio_retained!(MetadataTag);
 #[cfg(test)]
 mod tests {
     use super::{MetadataEnumerateOptions, MetadataType};
-    use crate::ffi;
 
     #[test]
     fn metadata_type_maps_known_numeric_values() {
-        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeInvalid), MetadataType::Invalid);
-        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeDefault), MetadataType::Default);
-        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeString), MetadataType::String);
-        assert_eq!(
-            MetadataType::from(ffi::kCGImageMetadataTypeArrayUnordered),
-            MetadataType::ArrayUnordered
-        );
-        assert_eq!(
-            MetadataType::from(ffi::kCGImageMetadataTypeArrayOrdered),
-            MetadataType::ArrayOrdered
-        );
-        assert_eq!(
-            MetadataType::from(ffi::kCGImageMetadataTypeAlternateArray),
-            MetadataType::AlternateArray
-        );
-        assert_eq!(
-            MetadataType::from(ffi::kCGImageMetadataTypeAlternateText),
-            MetadataType::AlternateText
-        );
-        assert_eq!(MetadataType::from(ffi::kCGImageMetadataTypeStructure), MetadataType::Structure);
+        assert_eq!(MetadataType::from(-1), MetadataType::Invalid);
+        assert_eq!(MetadataType::from(0), MetadataType::Default);
+        assert_eq!(MetadataType::from(1), MetadataType::String);
+        assert_eq!(MetadataType::from(2), MetadataType::ArrayUnordered);
+        assert_eq!(MetadataType::from(3), MetadataType::ArrayOrdered);
+        assert_eq!(MetadataType::from(4), MetadataType::AlternateArray);
+        assert_eq!(MetadataType::from(5), MetadataType::AlternateText);
+        assert_eq!(MetadataType::from(6), MetadataType::Structure);
     }
 
     #[test]

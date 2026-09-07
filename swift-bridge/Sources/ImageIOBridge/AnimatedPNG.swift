@@ -3,6 +3,38 @@ import ImageIO
 
 typealias ImageAnimationCallback = @convention(c) (Int, Int, Int, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
 
+private final class AnimationWaitState {
+    private let expectedCallbackCount: Int?
+    private var callbackCount = 0
+    private(set) var finished = false
+    private(set) var failureMessage: String?
+
+    init(expectedCallbackCount: Int?) {
+        self.expectedCallbackCount = expectedCallbackCount
+    }
+
+    func completeFrame(keepGoing: Bool) -> Bool {
+        callbackCount += 1
+        let reachedNaturalEnd = expectedCallbackCount.map { callbackCount >= $0 } ?? false
+        let shouldStop = !keepGoing || reachedNaturalEnd
+        if shouldStop {
+            finished = true
+        }
+        return shouldStop
+    }
+
+    func fail(_ message: String) {
+        failureMessage = message
+        finished = true
+    }
+
+    func wait() {
+        while !finished {
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+        }
+    }
+}
+
 private func pngDictionary(from raw: UnsafeMutableRawPointer?) -> NSDictionary? {
     guard let raw else {
         return nil
@@ -11,31 +43,115 @@ private func pngDictionary(from raw: UnsafeMutableRawPointer?) -> NSDictionary? 
     return properties[kCGImagePropertyPNGDictionary] as? NSDictionary
 }
 
-private func animateSource(
+private func animationLoopCount(_ source: CGImageSource) -> Int {
+    guard let properties = CGImageSourceCopyProperties(source, nil) as NSDictionary? else {
+        return 1
+    }
+    if let gif = properties[kCGImagePropertyGIFDictionary] as? NSDictionary,
+       let loopCount = gif[kCGImagePropertyGIFLoopCount] as? NSNumber
+    {
+        return loopCount.intValue
+    }
+    if let png = properties[kCGImagePropertyPNGDictionary] as? NSDictionary,
+       let loopCount = png[kCGImagePropertyAPNGLoopCount] as? NSNumber
+    {
+        return loopCount.intValue
+    }
+    return 1
+}
+
+private func expectedAnimationCallbackCount(
+    _ source: CGImageSource
+) -> (count: Int?, error: String?) {
+    let frameCount = CGImageSourceGetCount(source)
+    guard frameCount > 0 else {
+        return (nil, "image source contains zero frames")
+    }
+    let loopCount = animationLoopCount(source)
+    if loopCount == 0 {
+        return (nil, nil)
+    }
+    guard loopCount > 0 else {
+        return (nil, "animation loop count was negative")
+    }
+    let (callbackCount, overflow) = frameCount.multipliedReportingOverflow(by: loopCount)
+    guard !overflow else {
+        return (nil, "animation callback count overflowed Swift Int")
+    }
+    return (callbackCount, nil)
+}
+
+private func animationStatusMessage(_ status: OSStatus) -> String {
+    switch status {
+    case -22_140:
+        return "parameter error"
+    case -22_141:
+        return "corrupt input image"
+    case -22_142:
+        return "unsupported format"
+    case -22_143:
+        return "incomplete input image"
+    case -22_144:
+        return "allocation failure"
+    default:
+        return "unknown animation failure"
+    }
+}
+
+private func runAnimation(
     _ source: CGImageSource,
     userData: UnsafeMutableRawPointer?,
     callback: ImageAnimationCallback,
     errorBuffer: UnsafeMutablePointer<CChar>?,
-    errorBufferSize: Int
+    errorBufferSize: Int,
+    start: (@escaping (Int, CGImage, UnsafeMutablePointer<Bool>) -> Void) -> OSStatus
 ) -> Bool {
-    let count = CGImageSourceGetCount(source)
-    guard count > 0 else {
-        writeCString("image source contains zero frames", into: errorBuffer, capacity: errorBufferSize)
+    guard Thread.isMainThread else {
+        writeCString(
+            "synchronous animation must be started on the process main thread",
+            into: errorBuffer,
+            capacity: errorBufferSize
+        )
         return false
     }
-    for index in 0 ..< count {
-        guard let image = CGImageSourceCreateImageAtIndex(source, index, nil) else {
-            writeCString("CGImageSourceCreateImageAtIndex returned nil", into: errorBuffer, capacity: errorBufferSize)
-            return false
+
+    let plan = expectedAnimationCallbackCount(source)
+    if let error = plan.error {
+        writeCString(error, into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+
+    let state = AnimationWaitState(expectedCallbackCount: plan.count)
+    let status = start { index, image, stop in
+        guard Thread.isMainThread else {
+            state.fail("CGImageAnimation callback was not delivered on the main queue")
+            stop.pointee = true
+            return
         }
         guard let data = decodeCGImageToBGRA(image) else {
-            writeCString("failed to decode animation frame to BGRA", into: errorBuffer, capacity: errorBufferSize)
-            return false
+            state.fail("failed to decode animation frame to BGRA")
+            stop.pointee = true
+            return
         }
         let keepGoing = callback(index, image.width, image.height, retainBox(data), userData)
-        if !keepGoing {
-            return true
+        if state.completeFrame(keepGoing: keepGoing) {
+            stop.pointee = true
         }
+    }
+
+    guard status == 0 else {
+        writeCString(
+            "CGImageAnimation failed with status \(status): \(animationStatusMessage(status))",
+            into: errorBuffer,
+            capacity: errorBufferSize
+        )
+        return false
+    }
+
+    state.wait()
+    if let failure = state.failureMessage {
+        writeCString(failure, into: errorBuffer, capacity: errorBufferSize)
+        return false
     }
     return true
 }
@@ -52,11 +168,24 @@ func imageioAnimateImageAtPath(
         writeCString("animation callback was nil", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    guard let source = sourceFromPath(path) else {
+    guard let path else {
+        writeCString("invalid animation path", into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+    let url = URL(fileURLWithPath: String(cString: path)) as CFURL
+    guard let source = CGImageSourceCreateWithURL(url, nil) else {
         writeCString("CGImageSourceCreateWithURL returned nil", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    return animateSource(source, userData: userData, callback: callback, errorBuffer: errorBuffer, errorBufferSize: errorBufferSize)
+    return runAnimation(
+        source,
+        userData: userData,
+        callback: callback,
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) { block in
+        CGAnimateImageAtURLWithBlock(url, nil, block)
+    }
 }
 
 @_cdecl("imageio_animate_image_data")
@@ -77,7 +206,15 @@ func imageioAnimateImageData(
         writeCString("CGImageSourceCreateWithData returned nil", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    return animateSource(source, userData: userData, callback: callback, errorBuffer: errorBuffer, errorBufferSize: errorBufferSize)
+    return runAnimation(
+        source,
+        userData: userData,
+        callback: callback,
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) { block in
+        CGAnimateImageDataWithBlock(data, nil, block)
+    }
 }
 
 @_cdecl("imageio_apng_copy_dictionary")

@@ -69,3 +69,98 @@ fn metadata_exposes_error_domain_and_recursive_enumeration() {
         ])
     );
 }
+
+fn mutable_metadata(value: &str) -> MutableMetadata {
+    let mut metadata = MutableMetadata::new().expect("create mutable metadata");
+    metadata
+        .register_namespace_for_prefix("http://ns.adobe.com/xap/1.0/", "xmp")
+        .expect("register namespace");
+    let tag = MetadataTag::new_string(
+        "http://ns.adobe.com/xap/1.0/",
+        Some("xmp"),
+        "CreatorTool",
+        value,
+    )
+    .expect("create metadata tag");
+    metadata
+        .set_tag_with_path("xmp:CreatorTool", &tag)
+        .expect("set metadata tag");
+    metadata
+}
+
+#[test]
+fn mutable_metadata_clones_are_independent() {
+    let original = mutable_metadata("original");
+    let mut cloned = original.clone();
+    cloned
+        .set_string_value_with_path("xmp:CreatorTool", "clone")
+        .expect("mutate clone");
+
+    let original = original.into_metadata().expect("freeze original");
+    let cloned = cloned.into_metadata().expect("freeze clone");
+
+    assert_eq!(
+        original
+            .string_value_with_path("xmp:CreatorTool")
+            .expect("read original"),
+        Some("original".into())
+    );
+    assert_eq!(
+        cloned
+            .string_value_with_path("xmp:CreatorTool")
+            .expect("read clone"),
+        Some("clone".into())
+    );
+}
+
+#[test]
+fn frozen_metadata_is_independent_from_writable_clones() {
+    let mutable = mutable_metadata("frozen");
+    let mut writable = mutable.clone();
+    let frozen = mutable.into_metadata().expect("freeze metadata");
+
+    writable
+        .set_string_value_with_path("xmp:CreatorTool", "mutated")
+        .expect("mutate writable clone");
+
+    assert_eq!(
+        frozen
+            .string_value_with_path("xmp:CreatorTool")
+            .expect("read frozen metadata"),
+        Some("frozen".into())
+    );
+}
+
+#[test]
+fn metadata_enumeration_tolerates_reentrant_mutation_of_a_writable_clone() {
+    let mutable = mutable_metadata("enumerated");
+    let mut writable = mutable.clone();
+    let frozen = mutable.into_metadata().expect("freeze metadata");
+    let mut callbacks = 0;
+
+    frozen
+        .enumerate_tags(None, |_, _| {
+            callbacks += 1;
+            writable
+                .set_string_value_with_path("xmp:CreatorTool", "reentrant")
+                .expect("mutate writable clone during enumeration");
+            true
+        })
+        .expect("enumerate metadata");
+
+    assert!(callbacks > 0);
+    assert_eq!(
+        frozen
+            .string_value_with_path("xmp:CreatorTool")
+            .expect("read enumerated metadata"),
+        Some("enumerated".into())
+    );
+    assert_eq!(
+        writable
+            .into_metadata()
+            .expect("freeze writable clone")
+            .string_value_with_path("xmp:CreatorTool")
+            .expect("read writable clone"),
+        Some("reentrant".into())
+    );
+}

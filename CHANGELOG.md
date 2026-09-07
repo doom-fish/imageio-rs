@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.11.0] - 2026-09-07
+
+### Migration notes (breaking)
+
+- Handle the new `Result` values returned by `MutableMetadata::into_metadata`
+  and `ImageDestination::set_properties`.
+
+### Changed
+
+- Raised in-family requirements to `apple-cf >=0.10, <0.11` and
+  `doom-fish-utils >=0.4, <0.5`.
+
+### Fixed
+
+- Made `MutableMetadata::clone` a native deep copy and made `into_metadata` produce an independent frozen tree, preventing safe writable aliases during metadata enumeration. `into_metadata` now returns `Result`.
+- Treated `CGImageDestinationCopyImageSource` as terminal, removed the extra finalize from the high-level copy helper, and reject later destination mutations consistently. `ImageDestination::set_properties` now returns `Result`.
+- Retained and round-tripped the actual auxiliary `CGColorSpace` instead of replacing its presence with Device RGB.
+- Added shared checked BGRA width, height, stride, byte-length, and Swift `Int` validation to both destination image-add paths, with matching overflow checks in the Swift bridge.
+- Corrected the DNG profile key to `DNGProfileName` and used native DNG constants in the Swift property accessors.
+- Replaced substring-based DNG codec discovery with exact canonical matching plus `UTType` conformance.
+- Restored `CGAnimateImageAtURLWithBlock` / `CGAnimateImageDataWithBlock` timed playback, including native loop timing, main-queue callbacks, explicit main-thread enforcement, synchronous cancellation/termination, retained callback lifetime, and panic containment.
+- Preserved `ProRawBuilder` setter failures so `build` reports invalid profile names and camera models.
+
 ## [0.10.0] - 2026-09-01
 
 ### Fixed

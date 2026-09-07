@@ -1,6 +1,6 @@
 [package]
 name = "imageio"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
@@ -43,8 +43,8 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
-apple-cf = { version = ">=0.9, <0.10", default-features = false, features = ["cg"] }
-doom-fish-utils = { version = ">=0.1, <0.4", default-features = false }
+apple-cf = { version = ">=0.10, <0.11", default-features = false, features = ["cg"] }
+doom-fish-utils = { version = ">=0.4, <0.5", default-features = false }
 
 [dev-dependencies]
 pollster = "0.3"
@@ -62,6 +62,11 @@ maintenance = { status = "actively-developed" }
 [[example]]
 name = "11_async_incremental_decoder"
 required-features = ["async"]
+
+[[test]]
+name = "animation_main_thread_tests"
+path = "tests/animation_main_thread_tests.rs"
+harness = false
 
 [profile.release]
 debug = "full"

@@ -1,5 +1,6 @@
 //! RAW, DNG, and Apple `ProRAW` property helpers.
 
+use crate::bridge::{self, proraw as ffi};
 use crate::destination::ImageDestination;
 use crate::error::ImageError;
 use crate::properties::{ImageProperties, MutableProperties};
@@ -10,9 +11,11 @@ pub const RAW_DICTIONARY_KEY: &str = "{Raw}";
 /// Maps to the `kCGImagePropertyDNGDictionary` property dictionary.
 pub const DNG_DICTIONARY_KEY: &str = "{DNG}";
 /// Maps to the `kCGImagePropertyDNGProfileName` entry.
-pub const PROFILE_NAME_KEY: &str = "ProfileName";
+pub const PROFILE_NAME_KEY: &str = "DNGProfileName";
 /// Maps to the `kCGImagePropertyDNGUniqueCameraModel` entry.
 pub const UNIQUE_CAMERA_MODEL_KEY: &str = "UniqueCameraModel";
+/// Canonical DNG uniform type identifier.
+pub const DNG_TYPE_IDENTIFIER: &str = "com.adobe.raw-image";
 
 /// Typed RAW/DNG property view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,6 +59,7 @@ pub struct ProRawBuilder {
     root: MutableProperties,
     raw: MutableProperties,
     dng: MutableProperties,
+    pending_error: Option<ImageError>,
 }
 
 impl ProRawBuilder {
@@ -65,26 +69,36 @@ impl ProRawBuilder {
             root: MutableProperties::new()?,
             raw: MutableProperties::new()?,
             dng: MutableProperties::new()?,
+            pending_error: None,
         })
     }
 
     #[must_use]
     /// Sets `kCGImagePropertyDNGProfileName`.
     pub fn profile_name(mut self, profile_name: &str) -> Self {
-        let _ = self.dng.set_string(PROFILE_NAME_KEY, profile_name);
+        if self.pending_error.is_none() {
+            self.pending_error = self.dng.set_string(PROFILE_NAME_KEY, profile_name).err();
+        }
         self
     }
 
     #[must_use]
     /// Sets `kCGImagePropertyDNGUniqueCameraModel`.
     pub fn unique_camera_model(mut self, model: &str) -> Self {
-        let _ = self.raw.set_string(UNIQUE_CAMERA_MODEL_KEY, model);
-        let _ = self.dng.set_string(UNIQUE_CAMERA_MODEL_KEY, model);
+        if self.pending_error.is_none() {
+            self.pending_error = self.raw.set_string(UNIQUE_CAMERA_MODEL_KEY, model).err();
+        }
+        if self.pending_error.is_none() {
+            self.pending_error = self.dng.set_string(UNIQUE_CAMERA_MODEL_KEY, model).err();
+        }
         self
     }
 
     /// Freezes the RAW and DNG dictionaries for destination-side encode properties.
     pub fn build(mut self) -> Result<ImageProperties, ImageError> {
+        if let Some(error) = self.pending_error {
+            return Err(error);
+        }
         self.root
             .set_dictionary(RAW_DICTIONARY_KEY, &self.raw.freeze()?)?;
         self.root
@@ -93,20 +107,46 @@ impl ProRawBuilder {
     }
 }
 
+fn is_dng_identifier(identifier: &str) -> bool {
+    if identifier == DNG_TYPE_IDENTIFIER {
+        return true;
+    }
+    bridge::cstring(identifier).is_ok_and(|identifier| unsafe {
+        ffi::imageio_type_identifier_conforms_to_dng(identifier.as_ptr())
+    })
+}
+
 #[must_use]
-/// Returns `CGImageSourceCopyTypeIdentifiers` entries that look like DNG or `ProRAW`.
+/// Returns canonical DNG source identifiers and identifiers conforming to DNG.
 pub fn supported_source_identifiers() -> Vec<String> {
     ImageSource::type_identifiers()
         .into_iter()
-        .filter(|identifier| identifier.contains("dng") || identifier.contains("proraw"))
+        .filter(|identifier| is_dng_identifier(identifier))
         .collect()
 }
 
 #[must_use]
-/// Returns `CGImageDestinationCopyTypeIdentifiers` entries that look like DNG or `ProRAW`.
+/// Returns canonical DNG destination identifiers and identifiers conforming to DNG.
 pub fn supported_destination_identifiers() -> Vec<String> {
     ImageDestination::type_identifiers()
         .into_iter()
-        .filter(|identifier| identifier.contains("dng") || identifier.contains("proraw"))
+        .filter(|identifier| is_dng_identifier(identifier))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_dng_identifier, DNG_TYPE_IDENTIFIER, PROFILE_NAME_KEY};
+
+    #[test]
+    fn dng_profile_name_uses_native_key_value() {
+        assert_eq!(PROFILE_NAME_KEY, "DNGProfileName");
+    }
+
+    #[test]
+    fn dng_identifier_matching_is_exact_or_conformance_based() {
+        assert!(is_dng_identifier(DNG_TYPE_IDENTIFIER));
+        assert!(!is_dng_identifier("com.example.dng-preview"));
+        assert!(!is_dng_identifier("com.example.proraw-thumbnail"));
+    }
 }

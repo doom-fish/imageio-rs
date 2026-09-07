@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import ImageIO
 
@@ -5,7 +6,7 @@ final class AuxiliaryDataInfoBox {
     var data: Data = Data()
     var description: NSDictionary?
     var metadata: CGImageMetadata?
-    var hasColorSpace = false
+    var colorSpace: CGColorSpace?
 
     init() {}
 
@@ -19,8 +20,11 @@ final class AuxiliaryDataInfoBox {
         if dictionary[kCGImageAuxiliaryDataInfoMetadata] != nil {
             metadata = dictionary[kCGImageAuxiliaryDataInfoMetadata] as! CGImageMetadata
         }
-        if #available(macOS 15.0, *) {
-            hasColorSpace = dictionary[kCGImageAuxiliaryDataInfoColorSpace] != nil
+        if #available(macOS 15.0, *), let value = dictionary[kCGImageAuxiliaryDataInfoColorSpace] {
+            let cfValue = value as CFTypeRef
+            if CFGetTypeID(cfValue) == CGColorSpace.typeID {
+                colorSpace = unsafeBitCast(cfValue, to: CGColorSpace.self)
+            }
         }
     }
 
@@ -33,8 +37,8 @@ final class AuxiliaryDataInfoBox {
         if let metadata {
             dictionary[kCGImageAuxiliaryDataInfoMetadata] = metadata
         }
-        if #available(macOS 15.0, *), hasColorSpace {
-            dictionary[kCGImageAuxiliaryDataInfoColorSpace] = CGColorSpaceCreateDeviceRGB()
+        if #available(macOS 15.0, *), let colorSpace {
+            dictionary[kCGImageAuxiliaryDataInfoColorSpace] = colorSpace
         }
         return NSDictionary(dictionary: dictionary)
     }
@@ -83,6 +87,19 @@ public func imageioAuxiliaryDataInfoSetMetadata(
     info.metadata = unretainedBox(metadataRaw, as: CGImageMetadata.self).value
 }
 
+@_cdecl("imageio_auxiliary_data_info_set_color_space")
+public func imageioAuxiliaryDataInfoSetColorSpace(
+    _ raw: UnsafeMutableRawPointer?,
+    _ colorSpaceRaw: UnsafeMutableRawPointer?
+) {
+    guard let raw, let colorSpaceRaw else {
+        return
+    }
+    let info = unretainedBox(raw, as: AuxiliaryDataInfoBox.self).value
+    // `colorSpaceRaw` is a borrowed native CGColorSpaceRef, not a boxed bridge handle.
+    info.colorSpace = Unmanaged<CGColorSpace>.fromOpaque(colorSpaceRaw).takeUnretainedValue()
+}
+
 @_cdecl("imageio_auxiliary_data_info_copy_data")
 public func imageioAuxiliaryDataInfoCopyData(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
     guard let raw else {
@@ -116,11 +133,25 @@ public func imageioAuxiliaryDataInfoCopyMetadata(_ raw: UnsafeMutableRawPointer?
     return retainBox(metadata)
 }
 
+@_cdecl("imageio_auxiliary_data_info_copy_color_space")
+public func imageioAuxiliaryDataInfoCopyColorSpace(
+    _ raw: UnsafeMutableRawPointer?
+) -> UnsafeMutableRawPointer? {
+    guard let raw else {
+        return nil
+    }
+    let info = unretainedBox(raw, as: AuxiliaryDataInfoBox.self).value
+    guard let colorSpace = info.colorSpace else {
+        return nil
+    }
+    return Unmanaged.passRetained(colorSpace).toOpaque()
+}
+
 @_cdecl("imageio_auxiliary_data_info_has_color_space")
 public func imageioAuxiliaryDataInfoHasColorSpace(_ raw: UnsafeMutableRawPointer?) -> Bool {
     guard let raw else {
         return false
     }
     let info = unretainedBox(raw, as: AuxiliaryDataInfoBox.self).value
-    return info.hasColorSpace
+    return info.colorSpace != nil
 }

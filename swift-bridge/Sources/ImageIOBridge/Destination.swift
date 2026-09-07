@@ -4,11 +4,34 @@ import ImageIO
 final class DestinationState {
     let destination: CGImageDestination
     let mutableData: NSMutableData?
+    var isComplete = false
 
     init(destination: CGImageDestination, mutableData: NSMutableData?) {
         self.destination = destination
         self.mutableData = mutableData
     }
+}
+
+private func openDestinationState(
+    _ raw: UnsafeMutableRawPointer?,
+    operation: String,
+    errorBuffer: UnsafeMutablePointer<CChar>?,
+    errorBufferSize: Int
+) -> DestinationState? {
+    guard let raw else {
+        writeCString("invalid image destination", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    let state = unretainedBox(raw, as: DestinationState.self).value
+    guard !state.isComplete else {
+        writeCString(
+            "image destination is already complete; cannot \(operation)",
+            into: errorBuffer,
+            capacity: errorBufferSize
+        )
+        return nil
+    }
+    return state
 }
 
 private func destinationProperties(_ raw: UnsafeMutableRawPointer?) -> CFDictionary? {
@@ -68,13 +91,20 @@ public func imageioDestinationCreateWithData(
 @_cdecl("imageio_destination_set_properties")
 public func imageioDestinationSetProperties(
     _ raw: UnsafeMutableRawPointer?,
-    _ properties: UnsafeMutableRawPointer?
-) {
-    guard let raw else {
-        return
+    _ properties: UnsafeMutableRawPointer?,
+    _ errorBuffer: UnsafeMutablePointer<CChar>?,
+    _ errorBufferSize: Int
+) -> Bool {
+    guard let state = openDestinationState(
+        raw,
+        operation: "set properties",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
+        return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
     CGImageDestinationSetProperties(state.destination, destinationProperties(properties))
+    return true
 }
 
 @_cdecl("imageio_destination_add_bgra_image")
@@ -88,15 +118,22 @@ public func imageioDestinationAddBgraImage(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let bytes else {
+    guard let bytes else {
         writeCString("invalid BGRA image buffer", into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+    guard let state = openDestinationState(
+        raw,
+        operation: "add an image",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
         return false
     }
     guard let image = makeCGImage(fromBGRA: bytes, length: length, width: width, height: height) else {
         writeCString("failed to build CGImage from BGRA buffer", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
     CGImageDestinationAddImage(state.destination, image, destinationProperties(properties))
     return true
 }
@@ -115,11 +152,19 @@ public func imageioDestinationAddCgImage(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let cgImageRaw else {
+    guard let cgImageRaw else {
         writeCString("invalid destination or CGImage handle", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
+    guard let state = openDestinationState(
+        raw,
+        operation: "add an image",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
+        return false
+    }
+    // `cgImageRaw` is a borrowed native CGImageRef, unlike the boxed bridge handles.
     let cgImage = Unmanaged<CGImage>.fromOpaque(cgImageRaw).takeUnretainedValue()
     CGImageDestinationAddImage(state.destination, cgImage, destinationProperties(properties))
     return true
@@ -137,15 +182,22 @@ public func imageioDestinationAddBgraImageWithMetadata(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let bytes, let metadataRaw else {
+    guard let bytes, let metadataRaw else {
         writeCString("invalid BGRA image buffer or metadata", into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+    guard let state = openDestinationState(
+        raw,
+        operation: "add an image",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
         return false
     }
     guard let image = makeCGImage(fromBGRA: bytes, length: length, width: width, height: height) else {
         writeCString("failed to build CGImage from BGRA buffer", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
     let metadata = unretainedBox(metadataRaw, as: CGImageMetadata.self).value
     CGImageDestinationAddImageAndMetadata(state.destination, image, metadata, destinationProperties(properties))
     return true
@@ -160,11 +212,18 @@ public func imageioDestinationAddImageFromSource(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let sourceRaw else {
+    guard let sourceRaw else {
         writeCString("invalid image source", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
+    guard let state = openDestinationState(
+        raw,
+        operation: "add an image",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
+        return false
+    }
     let source = unretainedBox(sourceRaw, as: CGImageSource.self).value
     CGImageDestinationAddImageFromSource(state.destination, source, index, destinationProperties(properties))
     return true
@@ -178,11 +237,18 @@ public func imageioDestinationCopyImageSource(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let sourceRaw else {
+    guard let sourceRaw else {
         writeCString("invalid image source", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
+    guard let state = openDestinationState(
+        raw,
+        operation: "copy an image source",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
+        return false
+    }
     let source = unretainedBox(sourceRaw, as: CGImageSource.self).value
     var error: Unmanaged<CFError>?
     let ok = CGImageDestinationCopyImageSource(
@@ -192,6 +258,7 @@ public func imageioDestinationCopyImageSource(
         &error
     )
     if ok {
+        state.isComplete = true
         return true
     }
     let message = error?.takeRetainedValue().localizedDescription ?? "CGImageDestinationCopyImageSource returned false"
@@ -207,11 +274,18 @@ public func imageioDestinationAddAuxiliaryDataInfo(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw, let auxiliaryType, let infoRaw else {
+    guard let auxiliaryType, let infoRaw else {
         writeCString("invalid auxiliary data info", into: errorBuffer, capacity: errorBufferSize)
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
+    guard let state = openDestinationState(
+        raw,
+        operation: "add auxiliary data",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
+        return false
+    }
     let info = unretainedBox(infoRaw, as: AuxiliaryDataInfoBox.self).value
     let type = String(cString: auxiliaryType) as CFString
     CGImageDestinationAddAuxiliaryDataInfo(state.destination, type, info.dictionaryValue())
@@ -224,12 +298,18 @@ public func imageioDestinationFinalize(
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
-    guard let raw else {
+    guard let state = openDestinationState(
+        raw,
+        operation: "finalize",
+        errorBuffer: errorBuffer,
+        errorBufferSize: errorBufferSize
+    ) else {
         return false
     }
-    let state = unretainedBox(raw, as: DestinationState.self).value
     let ok = CGImageDestinationFinalize(state.destination)
-    if !ok {
+    if ok {
+        state.isComplete = true
+    } else {
         writeCString("CGImageDestinationFinalize returned false", into: errorBuffer, capacity: errorBufferSize)
     }
     return ok

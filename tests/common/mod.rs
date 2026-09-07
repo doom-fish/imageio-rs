@@ -58,5 +58,5 @@ pub fn sample_metadata() -> Metadata {
     metadata
         .set_tag_with_path("xmp:CreatorTool", &tag)
         .expect("set metadata tag");
-    metadata.into_metadata()
+    metadata.into_metadata().expect("freeze metadata")
 }

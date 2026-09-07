@@ -24,7 +24,11 @@ unsafe extern "C" {
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;
-    pub fn imageio_mutable_metadata_into_immutable(raw: Handle) -> Handle;
+    pub fn imageio_mutable_metadata_into_immutable(
+        raw: Handle,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> Handle;
     pub fn imageio_metadata_copy_tags(raw: Handle) -> Handle;
     pub fn imageio_metadata_tag_array_count(raw: Handle) -> usize;
     pub fn imageio_metadata_tag_array_copy_item(raw: Handle, index: usize) -> Handle;

@@ -3,7 +3,7 @@ mod common;
 use imageio::prelude::*;
 
 #[test]
-fn animated_png_builder_and_animation_helper_work() {
+fn animated_png_builder_round_trips_properties() {
     let properties = AnimatedPngBuilder::new()
         .expect("create APNG builder")
         .loop_count(2)
@@ -15,13 +15,21 @@ fn animated_png_builder_and_animation_helper_work() {
         .expect("parse APNG properties")
         .expect("APNG dictionary present");
 
-    let mut frames = 0_usize;
-    animate_image(common::animated_gif_path(), |_, _| {
-        frames += 1;
-        true
-    })
-    .expect("animate GIF");
-
     assert_eq!(parsed.loop_count, Some(2));
-    assert!(frames > 0);
+}
+
+#[test]
+fn synchronous_animation_rejects_non_main_thread_callers() {
+    let mut called = false;
+    let error = animate_image(common::animated_gif_path(), |_, _| {
+        called = true;
+        false
+    })
+    .expect_err("worker-thread animation must fail");
+
+    assert!(!called);
+    assert!(matches!(
+        error,
+        ImageError::DecodeFailed(message) if message.contains("process main thread")
+    ));
 }

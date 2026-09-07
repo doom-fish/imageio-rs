@@ -5,6 +5,8 @@ use crate::error::ImageError;
 use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 
+pub use apple_cf::cg::CGColorSpace;
+
 /// Auxiliary-data type identifiers supported by `ImageIO`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -115,6 +117,23 @@ impl AuxiliaryDataInfo {
     /// Returns the metadata tree associated with this auxiliary payload.
     pub fn metadata(&self) -> Option<Metadata> {
         Metadata::from_raw(unsafe { ffi::imageio_auxiliary_data_info_copy_metadata(self.raw) })
+    }
+
+    /// Retains the actual color space associated with this auxiliary payload.
+    pub fn set_color_space(&mut self, color_space: &CGColorSpace) {
+        unsafe {
+            ffi::imageio_auxiliary_data_info_set_color_space(self.raw, color_space.as_ptr());
+        }
+    }
+
+    #[must_use]
+    /// Returns an owned copy of the associated color-space reference.
+    pub fn color_space(&self) -> Option<CGColorSpace> {
+        let raw = unsafe { ffi::imageio_auxiliary_data_info_copy_color_space(self.raw) };
+        (!raw.is_null()).then(|| {
+            // SAFETY: the bridge returns a non-null native CGColorSpaceRef at +1 ownership.
+            unsafe { CGColorSpace::from_raw(raw) }
+        })
     }
 
     #[must_use]

@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut frames = 0_usize;
     animate_image(common::animated_gif_path(), |_, _| {
         frames += 1;
-        true
+        frames < 2
     })?;
 
     println!("loop_count={:?} frames={frames}", parsed.loop_count);

@@ -184,8 +184,7 @@ pub fn copy_image_source(
         })?
     };
     let mut destination = ImageDestination::to_path(output, &destination_type, frame_count)?;
-    destination.copy_image_source(&source, None)?;
-    destination.finalize()
+    destination.copy_image_source(&source, None)
 }
 
 #[cfg(test)]

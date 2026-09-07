@@ -66,12 +66,20 @@ public func imageioMutableMetadataCreateCopy(
 }
 
 @_cdecl("imageio_mutable_metadata_into_immutable")
-public func imageioMutableMetadataIntoImmutable(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
+public func imageioMutableMetadataIntoImmutable(
+    _ raw: UnsafeMutableRawPointer?,
+    _ errorBuffer: UnsafeMutablePointer<CChar>?,
+    _ errorBufferSize: Int
+) -> UnsafeMutableRawPointer? {
     guard let raw else {
         return nil
     }
     let metadata = unretainedBox(raw, as: CGMutableImageMetadata.self).value
-    return retainBox(metadata as CGImageMetadata)
+    guard let copy = CGImageMetadataCreateMutableCopy(metadata) else {
+        writeCString("CGImageMetadataCreateMutableCopy returned nil", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    return retainBox(copy as CGImageMetadata)
 }
 
 @_cdecl("imageio_metadata_copy_tags")

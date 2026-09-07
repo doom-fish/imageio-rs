@@ -13,15 +13,71 @@ use crate::source::ImageSource;
 /// Re-exports Apple's `CGImage` for direct `CGImageDestinationAddImage` interop.
 pub use apple_cf::cg::CGImage;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DestinationState {
+    Open,
+    Complete,
+}
+
 /// Owned destination handle.
 #[derive(Debug)]
 pub struct ImageDestination {
     raw: Handle,
+    state: DestinationState,
 }
 
 impl ImageDestination {
     fn from_raw(raw: Handle) -> Option<Self> {
-        (!raw.is_null()).then_some(Self { raw })
+        (!raw.is_null()).then_some(Self {
+            raw,
+            state: DestinationState::Open,
+        })
+    }
+
+    fn ensure_open(&self, operation: &str) -> Result<(), ImageError> {
+        if self.state == DestinationState::Open {
+            Ok(())
+        } else {
+            Err(ImageError::EncodeFailed(format!(
+                "image destination is already complete; cannot {operation}"
+            )))
+        }
+    }
+
+    fn validate_bgra_image(image: &DecodedImage) -> Result<(), ImageError> {
+        if image.width == 0 || image.height == 0 {
+            return Err(ImageError::EncodeFailed(
+                "BGRA image dimensions must be non-zero".into(),
+            ));
+        }
+        isize::try_from(image.width).map_err(|_| {
+            ImageError::EncodeFailed("BGRA image width does not fit Swift Int".into())
+        })?;
+        isize::try_from(image.height).map_err(|_| {
+            ImageError::EncodeFailed("BGRA image height does not fit Swift Int".into())
+        })?;
+        let bytes_per_row = image.width.checked_mul(4).ok_or_else(|| {
+            ImageError::EncodeFailed("BGRA image row stride overflows usize".into())
+        })?;
+        isize::try_from(bytes_per_row).map_err(|_| {
+            ImageError::EncodeFailed("BGRA image row stride does not fit Swift Int".into())
+        })?;
+        let expected = bytes_per_row.checked_mul(image.height).ok_or_else(|| {
+            ImageError::EncodeFailed("BGRA image byte length overflows usize".into())
+        })?;
+        isize::try_from(expected).map_err(|_| {
+            ImageError::EncodeFailed("BGRA image byte length does not fit Swift Int".into())
+        })?;
+        isize::try_from(image.bgra.len()).map_err(|_| {
+            ImageError::EncodeFailed("BGRA buffer length does not fit Swift Int".into())
+        })?;
+        if image.bgra.len() < expected {
+            return Err(ImageError::EncodeFailed(format!(
+                "buffer too small for {}x{} BGRA image",
+                image.width, image.height
+            )));
+        }
+        Ok(())
     }
 
     #[must_use]
@@ -77,8 +133,20 @@ impl ImageDestination {
     }
 
     /// Wraps `CGImageDestinationSetProperties`.
-    pub fn set_properties(&mut self, properties: &ImageProperties) {
-        unsafe { ffi::imageio_destination_set_properties(self.raw, properties.as_raw()) };
+    pub fn set_properties(&mut self, properties: &ImageProperties) -> Result<(), ImageError> {
+        self.ensure_open("set properties")?;
+        let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_destination_set_properties(self.raw, properties.as_raw(), buffer, size)
+        });
+        if ok {
+            Ok(())
+        } else {
+            Err(ImageError::EncodeFailed(if message.is_empty() {
+                "imageio_destination_set_properties returned false".into()
+            } else {
+                message
+            }))
+        }
     }
 
     /// Adds a BGRA frame via `CGImageDestinationAddImage`.
@@ -87,13 +155,8 @@ impl ImageDestination {
         image: &DecodedImage,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
-        let expected = image.width.saturating_mul(image.height).saturating_mul(4);
-        if image.bgra.len() < expected {
-            return Err(ImageError::EncodeFailed(format!(
-                "buffer too small for {}x{} BGRA image",
-                image.width, image.height
-            )));
-        }
+        self.ensure_open("add an image")?;
+        Self::validate_bgra_image(image)?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_bgra_image(
@@ -125,6 +188,8 @@ impl ImageDestination {
         metadata: &Metadata,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
+        self.ensure_open("add an image")?;
+        Self::validate_bgra_image(image)?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_bgra_image_with_metadata(
@@ -174,6 +239,7 @@ impl ImageDestination {
         cg_image: &CGImage,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
+        self.ensure_open("add an image")?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_cg_image(
@@ -202,6 +268,7 @@ impl ImageDestination {
         index: usize,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
+        self.ensure_open("add an image")?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_image_from_source(
@@ -230,6 +297,7 @@ impl ImageDestination {
         source: &ImageSource,
         properties: Option<&ImageProperties>,
     ) -> Result<(), ImageError> {
+        self.ensure_open("copy an image source")?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_copy_image_source(
@@ -241,6 +309,7 @@ impl ImageDestination {
             )
         });
         if ok {
+            self.state = DestinationState::Complete;
             Ok(())
         } else {
             Err(ImageError::EncodeFailed(if message.is_empty() {
@@ -257,6 +326,7 @@ impl ImageDestination {
         auxiliary_type: AuxiliaryDataType,
         info: &AuxiliaryDataInfo,
     ) -> Result<(), ImageError> {
+        self.ensure_open("add auxiliary data")?;
         let auxiliary_type = bridge::cstring(auxiliary_type.identifier())?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_auxiliary_data_info(
@@ -280,10 +350,12 @@ impl ImageDestination {
 
     /// Wraps `CGImageDestinationFinalize`.
     pub fn finalize(&mut self) -> Result<(), ImageError> {
+        self.ensure_open("finalize")?;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_finalize(self.raw, buffer, size)
         });
         if ok {
+            self.state = DestinationState::Complete;
             Ok(())
         } else {
             Err(ImageError::EncodeFailed(if message.is_empty() {

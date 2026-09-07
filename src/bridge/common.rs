@@ -3,7 +3,14 @@ use std::path::Path;
 
 use crate::error::ImageError;
 
+/// Opaque retained pointer to a Swift `Box<T>`.
+///
+/// This is not the native pointer for the boxed Core Foundation or Objective-C
+/// value. Bridge entry points that accept native pointers use [`NativeHandle`].
 pub type Handle = *mut c_void;
+
+/// Borrowed or owned native Core Foundation / Objective-C object pointer.
+pub type NativeHandle = *mut c_void;
 const ERROR_BUFFER_SIZE: usize = 1024;
 
 unsafe extern "C" {

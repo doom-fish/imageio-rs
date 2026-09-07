@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** `imageio` `0.9.0` follows the `screencapturekit-rs` coverage pattern for the C-only `ImageIO.framework`.
+> **Status:** `imageio` `0.11.0` follows the audited bridge pattern for the C-only `ImageIO.framework`.
 >
 > - the default build compiles a tiny SwiftPM bridge from `swift-bridge/`
 > - ergonomic safe modules cover Source, Destination, Properties, Metadata, AuxiliaryData, ColorSync, AnimatedPNG, HEIF, `ProRAW`, and Thumbnail workflows
@@ -42,9 +42,14 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 - `ImageSource` + `SourceStatus` for file/data/incremental sources
 - `ImageDestination` for file/data encodes, metadata, and auxiliary data
 - `ImageProperties` / `MutableProperties` plus typed APNG / HEIF / `ProRAW` / color helpers
-- `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, and `MetadataTag` for XMP workflows
-- `create_thumbnail`, `animate_image`, and `animate_image_from_bytes`
+- `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, and `MetadataTag` for XMP workflows; mutable clones and `into_metadata()` produce independent trees
+- `AuxiliaryDataInfo::set_color_space` / `color_space` retain the actual auxiliary `CGColorSpace`
+- `create_thumbnail`, `animate_image`, and `animate_image_from_bytes`; animation callbacks follow native frame timing on the main queue
 - `async_api::IncrementalImageDecoder` (feature = `async`) for progressive thumbnail snapshots from incremental sources
+
+`CGImageDestinationCopyImageSource` is terminal: `ImageDestination::copy_image_source` writes the output and completes the destination without a later `finalize()`. Subsequent add/finalize calls return `ImageError::EncodeFailed`.
+
+The animation helpers are synchronous and must be invoked on the process main thread. They return after finite native playback completes or after the callback returns `false`.
 
 ## Quick start
 

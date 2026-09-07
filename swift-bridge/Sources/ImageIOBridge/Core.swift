@@ -2,6 +2,8 @@ import CoreGraphics
 import Foundation
 import ImageIO
 
+/// Handles returned to Rust are retained pointers to these boxes, not native
+/// pointers to the value stored inside them.
 final class Box<T> {
     let value: T
 
@@ -39,12 +41,29 @@ func errorMessage(_ error: Error) -> String {
 private let bgraBitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)
     .union(.byteOrder32Little)
 
+private func checkedBgraLayout(width: Int, height: Int) -> (bytesPerRow: Int, byteCount: Int)? {
+    guard width > 0, height > 0 else {
+        return nil
+    }
+    let (bytesPerRow, strideOverflow) = width.multipliedReportingOverflow(by: 4)
+    guard !strideOverflow else {
+        return nil
+    }
+    let (byteCount, lengthOverflow) = bytesPerRow.multipliedReportingOverflow(by: height)
+    guard !lengthOverflow else {
+        return nil
+    }
+    return (bytesPerRow, byteCount)
+}
+
 func decodeCGImageToBGRA(_ image: CGImage) -> Data? {
     let width = image.width
     let height = image.height
-    let bytesPerRow = width * 4
+    guard let layout = checkedBgraLayout(width: width, height: height) else {
+        return nil
+    }
     let colorSpace = CGColorSpaceCreateDeviceRGB()
-    var data = Data(count: bytesPerRow * height)
+    var data = Data(count: layout.byteCount)
     let drew = data.withUnsafeMutableBytes { bytes in
         guard let baseAddress = bytes.baseAddress else {
             return false
@@ -54,7 +73,7 @@ func decodeCGImageToBGRA(_ image: CGImage) -> Data? {
             width: width,
             height: height,
             bitsPerComponent: 8,
-            bytesPerRow: bytesPerRow,
+            bytesPerRow: layout.bytesPerRow,
             space: colorSpace,
             bitmapInfo: bgraBitmapInfo.rawValue
         ) else {
@@ -80,11 +99,12 @@ func makeCGImage(
     width: Int,
     height: Int
 ) -> CGImage? {
-    let expectedLength = width * height * 4
-    guard length >= expectedLength else {
+    guard length >= 0, let layout = checkedBgraLayout(width: width, height: height),
+          length >= layout.byteCount
+    else {
         return nil
     }
-    let data = Data(bytes: bytes, count: expectedLength)
+    let data = Data(bytes: bytes, count: layout.byteCount)
     guard let provider = CGDataProvider(data: data as CFData) else {
         return nil
     }
@@ -94,7 +114,7 @@ func makeCGImage(
         height: height,
         bitsPerComponent: 8,
         bitsPerPixel: 32,
-        bytesPerRow: width * 4,
+        bytesPerRow: layout.bytesPerRow,
         space: colorSpace,
         bitmapInfo: bgraBitmapInfo,
         provider: provider,

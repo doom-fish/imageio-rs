@@ -1,6 +1,6 @@
 # COVERAGE
 
-Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers` for `imageio` `0.4.1`.
+Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers` for `imageio` `0.11.0`.
 
 Legend: `✅ implemented`, `🟡 partial`, `⏭️ skipped`.
 
@@ -1022,4 +1022,3 @@ Safe coverage for this header lives in `properties`, `animated_png`, `heif`, `pr
 | `kIIOStereoAggressors_Severity` | ✅ implemented |
 | `kIIOStereoAggressors_SubTypeURI` | ✅ implemented |
 | `kIIOStereoAggressors_Type` | ✅ implemented |
-

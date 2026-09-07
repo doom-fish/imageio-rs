@@ -30,7 +30,7 @@ pub mod thumbnail;
 
 pub use animated_png::{AnimatedPngBuilder, AnimatedPngProperties};
 pub use animation::{animate_image, animate_image_from_bytes};
-pub use auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
+pub use auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType, CGColorSpace};
 pub use destination::ImageDestination;
 pub use error::ImageError;
 pub use heif::{HeifBuilder, HeifProperties};
@@ -54,7 +54,7 @@ pub mod prelude {
     pub use crate::async_api::{
         IncrementalDecodeStream, IncrementalDecodeUpdate, IncrementalImageDecoder,
     };
-    pub use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
+    pub use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType, CGColorSpace};
     pub use crate::color_sync::{self, DecodeRequest, EncodeRequest};
     pub use crate::destination::ImageDestination;
     pub use crate::error::ImageError;

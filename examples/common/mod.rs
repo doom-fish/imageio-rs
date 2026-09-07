@@ -59,5 +59,5 @@ pub fn sample_metadata() -> Result<Metadata, Box<dyn Error>> {
         "imageio-example",
     )?;
     metadata.set_tag_with_path("xmp:CreatorTool", &tag)?;
-    Ok(metadata.into_metadata())
+    Ok(metadata.into_metadata()?)
 }

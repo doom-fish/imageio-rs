@@ -21,3 +21,17 @@ fn auxiliary_data_round_trips_data_and_description() {
     );
     assert!(info.metadata().is_some());
 }
+
+#[test]
+fn auxiliary_data_retains_the_actual_non_rgb_color_space() {
+    let mut info = AuxiliaryDataInfo::new().expect("create auxiliary data info");
+    {
+        let gray = CGColorSpace::device_gray();
+        assert_eq!(gray.number_of_components(), 1);
+        info.set_color_space(&gray);
+    }
+
+    let retained = info.color_space().expect("retained color space");
+    assert!(info.has_color_space());
+    assert_eq!(retained.number_of_components(), 1);
+}

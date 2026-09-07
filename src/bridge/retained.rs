@@ -1,9 +1,9 @@
 //! Declarative macro for retain/release handle wrapper boilerplate.
 //!
 //! Many `ImageIO` wrapper types hold a single `Handle` (a `*mut c_void`) to a
-//! retained Core Foundation / Objective-C object and hand-roll identical
-//! `Clone` (retain) and `Drop` (release) implementations. `imageio_retained!`
-//! consolidates that boilerplate into a single audited place.
+//! retained Swift `Box<T>` and hand-roll identical `Clone` (retain) and `Drop`
+//! (release) implementations. `imageio_retained!` consolidates that
+//! boilerplate into a single audited place.
 //!
 //! The generated impls preserve the exact behavior of the previous
 //! hand-written versions:

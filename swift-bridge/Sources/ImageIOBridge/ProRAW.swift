@@ -1,5 +1,6 @@
 import Foundation
 import ImageIO
+import UniformTypeIdentifiers
 
 private func rawDictionary(from raw: UnsafeMutableRawPointer?) -> NSDictionary? {
     guard let raw else {
@@ -35,7 +36,9 @@ public func imageioProrawCopyDngDictionary(_ raw: UnsafeMutableRawPointer?) -> U
 
 @_cdecl("imageio_proraw_copy_profile_name")
 public func imageioProrawCopyProfileName(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
-    guard let dictionary = dngDictionary(from: raw), let profileName = dictionary["ProfileName"] as? String else {
+    guard let dictionary = dngDictionary(from: raw),
+          let profileName = dictionary[kCGImagePropertyDNGProfileName] as? String
+    else {
         return nil
     }
     return retainBox(profileName)
@@ -43,11 +46,26 @@ public func imageioProrawCopyProfileName(_ raw: UnsafeMutableRawPointer?) -> Uns
 
 @_cdecl("imageio_proraw_copy_unique_camera_model")
 public func imageioProrawCopyUniqueCameraModel(_ raw: UnsafeMutableRawPointer?) -> UnsafeMutableRawPointer? {
-    if let rawDictionary = rawDictionary(from: raw), let model = rawDictionary["UniqueCameraModel"] as? String {
+    if let rawDictionary = rawDictionary(from: raw),
+       let model = rawDictionary[kCGImagePropertyDNGUniqueCameraModel] as? String
+    {
         return retainBox(model)
     }
-    if let dngDictionary = dngDictionary(from: raw), let model = dngDictionary["UniqueCameraModel"] as? String {
+    if let dngDictionary = dngDictionary(from: raw),
+       let model = dngDictionary[kCGImagePropertyDNGUniqueCameraModel] as? String
+    {
         return retainBox(model)
     }
     return nil
+}
+
+@_cdecl("imageio_type_identifier_conforms_to_dng")
+public func imageioTypeIdentifierConformsToDng(_ identifier: UnsafePointer<CChar>?) -> Bool {
+    guard let identifier,
+          let candidate = UTType(String(cString: identifier)),
+          let dng = UTType("com.adobe.raw-image")
+    else {
+        return false
+    }
+    return candidate == dng || candidate.conforms(to: dng)
 }

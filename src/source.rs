@@ -255,19 +255,15 @@ crate::bridge::retained::imageio_retained!(ImageSource);
 #[cfg(test)]
 mod tests {
     use super::SourceStatus;
-    use crate::ffi;
 
     #[test]
     fn source_status_maps_known_numeric_values() {
-        assert_eq!(SourceStatus::from(ffi::kCGImageStatusUnexpectedEOF), SourceStatus::UnexpectedEof);
-        assert_eq!(SourceStatus::from(ffi::kCGImageStatusInvalidData), SourceStatus::InvalidData);
-        assert_eq!(SourceStatus::from(ffi::kCGImageStatusUnknownType), SourceStatus::UnknownType);
-        assert_eq!(
-            SourceStatus::from(ffi::kCGImageStatusReadingHeader),
-            SourceStatus::ReadingHeader
-        );
-        assert_eq!(SourceStatus::from(ffi::kCGImageStatusIncomplete), SourceStatus::Incomplete);
-        assert_eq!(SourceStatus::from(ffi::kCGImageStatusComplete), SourceStatus::Complete);
+        assert_eq!(SourceStatus::from(-5), SourceStatus::UnexpectedEof);
+        assert_eq!(SourceStatus::from(-4), SourceStatus::InvalidData);
+        assert_eq!(SourceStatus::from(-3), SourceStatus::UnknownType);
+        assert_eq!(SourceStatus::from(-2), SourceStatus::ReadingHeader);
+        assert_eq!(SourceStatus::from(-1), SourceStatus::Incomplete);
+        assert_eq!(SourceStatus::from(0), SourceStatus::Complete);
     }
 
     #[test]
@@ -279,12 +275,7 @@ mod tests {
     #[test]
     fn source_status_progression_matches_core_graphics_ordering() {
         let statuses = [
-            ffi::kCGImageStatusUnexpectedEOF,
-            ffi::kCGImageStatusInvalidData,
-            ffi::kCGImageStatusUnknownType,
-            ffi::kCGImageStatusReadingHeader,
-            ffi::kCGImageStatusIncomplete,
-            ffi::kCGImageStatusComplete,
+            -5, -4, -3, -2, -1, 0,
         ];
 
         assert!(statuses.windows(2).all(|pair| pair[0] < pair[1]));

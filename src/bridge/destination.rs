@@ -1,4 +1,4 @@
-use super::common::Handle;
+use super::common::{Handle, NativeHandle};
 
 unsafe extern "C" {
     pub fn imageio_destination_copy_type_identifiers() -> Handle;
@@ -15,7 +15,12 @@ unsafe extern "C" {
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;
-    pub fn imageio_destination_set_properties(raw: Handle, properties: Handle);
+    pub fn imageio_destination_set_properties(
+        raw: Handle,
+        properties: Handle,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> bool;
     pub fn imageio_destination_add_bgra_image(
         raw: Handle,
         bytes: *const u8,
@@ -39,7 +44,7 @@ unsafe extern "C" {
     ) -> bool;
     pub fn imageio_destination_add_cg_image(
         raw: Handle,
-        cg_image: *mut core::ffi::c_void,
+        cg_image: NativeHandle,
         properties: Handle,
         error_buffer: *mut i8,
         error_buffer_size: usize,
