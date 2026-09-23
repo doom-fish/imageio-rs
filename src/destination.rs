@@ -1,6 +1,11 @@
 //! Safe wrapper around `CGImageDestination`.
 
+use std::ffi::c_void;
+use std::io::{self, Write};
 use std::path::Path;
+use std::sync::{Mutex, PoisonError};
+
+use doom_fish_utils::callback_context::CallbackContext;
 
 use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
 use crate::bridge::{self, destination as ffi, Handle};
@@ -19,11 +24,48 @@ enum DestinationState {
     Complete,
 }
 
+struct WriterSink {
+    writer: Mutex<Box<dyn Write + Send>>,
+    error: Mutex<Option<io::Error>>,
+}
+
+unsafe extern "C" fn write_to_sink(
+    context: *mut c_void,
+    bytes: *const c_void,
+    count: usize,
+) -> usize {
+    if bytes.is_null() {
+        return 0;
+    }
+    unsafe {
+        CallbackContext::<WriterSink>::with(context, "imageio_data_consumer_put_bytes", |sink| {
+            let data = std::slice::from_raw_parts(bytes.cast::<u8>(), count);
+            let written = sink
+                .writer
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .write_all(data);
+            match written {
+                Ok(()) => count,
+                Err(error) => {
+                    sink.error
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .get_or_insert(error);
+                    0
+                }
+            }
+        })
+    }
+    .unwrap_or(0)
+}
+
 /// Owned destination handle.
 #[derive(Debug)]
 pub struct ImageDestination {
     raw: Handle,
     state: DestinationState,
+    sink: Option<CallbackContext<WriterSink>>,
 }
 
 impl ImageDestination {
@@ -31,7 +73,28 @@ impl ImageDestination {
         (!raw.is_null()).then_some(Self {
             raw,
             state: DestinationState::Open,
+            sink: None,
         })
+    }
+
+    fn sink_result(&self) -> Result<(), ImageError> {
+        let Some(sink) = &self.sink else {
+            return Ok(());
+        };
+        let sink = sink.get();
+        let error = sink
+            .error
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take();
+        if let Some(error) = error {
+            return Err(ImageError::EncodeFailed(format!("writer failed: {error}")));
+        }
+        sink.writer
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .flush()
+            .map_err(|error| ImageError::EncodeFailed(format!("writer failed: {error}")))
     }
 
     fn ensure_open(&self, operation: &str) -> Result<(), ImageError> {
@@ -130,6 +193,41 @@ impl ImageDestination {
                 message
             })
         })
+    }
+
+    pub fn to_writer<W>(
+        writer: W,
+        type_identifier: &str,
+        image_count: usize,
+    ) -> Result<Self, ImageError>
+    where
+        W: Write + Send + 'static,
+    {
+        let type_identifier = bridge::cstring(type_identifier)?;
+        let sink = CallbackContext::new(WriterSink {
+            writer: Mutex::new(Box::new(writer)),
+            error: Mutex::new(None),
+        });
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_destination_create_with_data_consumer(
+                sink.retained_ptr(),
+                write_to_sink,
+                CallbackContext::<WriterSink>::RELEASE,
+                type_identifier.as_ptr(),
+                image_count,
+                buffer,
+                size,
+            )
+        });
+        let mut destination = Self::from_raw(raw).ok_or_else(|| {
+            ImageError::EncodeFailed(if message.is_empty() {
+                "imageio_destination_create_with_data_consumer returned NULL".into()
+            } else {
+                message
+            })
+        })?;
+        destination.sink = Some(sink);
+        Ok(destination)
     }
 
     /// Wraps `CGImageDestinationSetProperties`.
@@ -328,8 +426,9 @@ impl ImageDestination {
         });
         if ok {
             self.state = DestinationState::Complete;
-            Ok(())
+            self.sink_result()
         } else {
+            self.sink_result()?;
             Err(ImageError::EncodeFailed(if message.is_empty() {
                 "imageio_destination_copy_image_source returned false".into()
             } else {
@@ -374,8 +473,9 @@ impl ImageDestination {
         });
         if ok {
             self.state = DestinationState::Complete;
-            Ok(())
+            self.sink_result()
         } else {
+            self.sink_result()?;
             Err(ImageError::EncodeFailed(if message.is_empty() {
                 "imageio_destination_finalize returned false".into()
             } else {

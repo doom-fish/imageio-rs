@@ -88,6 +88,39 @@ public func imageioDestinationCreateWithData(
     return retainBox(DestinationState(destination: destination, mutableData: data))
 }
 
+@_cdecl("imageio_destination_create_with_data_consumer")
+public func imageioDestinationCreateWithDataConsumer(
+    _ context: UnsafeMutableRawPointer?,
+    _ putBytes: CGDataConsumerPutBytesCallback?,
+    _ releaseContext: CGDataConsumerReleaseInfoCallback?,
+    _ typeIdentifier: UnsafePointer<CChar>?,
+    _ imageCount: Int,
+    _ errorBuffer: UnsafeMutablePointer<CChar>?,
+    _ errorBufferSize: Int
+) -> UnsafeMutableRawPointer? {
+    guard let putBytes, let releaseContext else {
+        writeCString("invalid data consumer callbacks", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    guard let typeIdentifier else {
+        releaseContext(context)
+        writeCString("invalid destination type identifier", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    var callbacks = CGDataConsumerCallbacks(putBytes: putBytes, releaseConsumer: releaseContext)
+    guard let consumer = CGDataConsumer(info: context, cbks: &callbacks) else {
+        releaseContext(context)
+        writeCString("CGDataConsumerCreate returned nil", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    let type = String(cString: typeIdentifier) as CFString
+    guard let destination = CGImageDestinationCreateWithDataConsumer(consumer, type, imageCount, nil) else {
+        writeCString("CGImageDestinationCreateWithDataConsumer returned nil", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    return retainBox(DestinationState(destination: destination, mutableData: nil))
+}
+
 @_cdecl("imageio_destination_set_properties")
 public func imageioDestinationSetProperties(
     _ raw: UnsafeMutableRawPointer?,

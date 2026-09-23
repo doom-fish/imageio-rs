@@ -174,3 +174,96 @@ fn decode_first_cg_image(bytes: &[u8]) -> apple_cf::cg::CGImage {
         apple_cf::cg::CGImage::from_raw(img)
     }
 }
+
+#[derive(Clone, Default)]
+struct SharedBuffer(std::sync::Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl std::io::Write for SharedBuffer {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().expect("buffer lock").extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+struct FailingWriter;
+
+impl std::io::Write for FailingWriter {
+    fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+        Err(std::io::Error::other("disk full"))
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+struct PanickingWriter;
+
+impl std::io::Write for PanickingWriter {
+    fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+        panic!("writer test panic");
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+#[test]
+fn destination_streams_encoded_bytes_to_a_writer() {
+    let buffer = SharedBuffer::default();
+    let mut destination =
+        ImageDestination::to_writer(buffer.clone(), ImageFormat::Png.type_identifier(), 1)
+            .expect("writer destination");
+    destination
+        .add_image(&common::sample_image(), None)
+        .expect("add image");
+    destination.finalize().expect("finalize into the writer");
+    assert!(destination.data().is_none());
+    drop(destination);
+
+    let written = buffer.0.lock().expect("buffer lock").clone();
+    assert!(written.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert_eq!(decode_bgra_from_bytes(&written), Ok(common::sample_image()));
+}
+
+#[test]
+fn writer_errors_fail_finalize() {
+    let mut destination =
+        ImageDestination::to_writer(FailingWriter, ImageFormat::Png.type_identifier(), 1)
+            .expect("writer destination");
+    destination
+        .add_image(&common::sample_image(), None)
+        .expect("add image");
+    assert!(matches!(
+        destination.finalize(),
+        Err(ImageError::EncodeFailed(message)) if message.contains("disk full")
+    ));
+}
+
+#[test]
+fn writer_panics_are_contained() {
+    let mut destination =
+        ImageDestination::to_writer(PanickingWriter, ImageFormat::Png.type_identifier(), 1)
+            .expect("writer destination");
+    destination
+        .add_image(&common::sample_image(), None)
+        .expect("add image");
+    assert!(destination.finalize().is_err());
+}
+
+#[test]
+fn unfinished_writer_destinations_release_the_writer() {
+    let buffer = SharedBuffer::default();
+    let destination =
+        ImageDestination::to_writer(buffer.clone(), ImageFormat::Png.type_identifier(), 1)
+            .expect("writer destination");
+    assert_eq!(std::sync::Arc::strong_count(&buffer.0), 2);
+    drop(destination);
+    assert_eq!(std::sync::Arc::strong_count(&buffer.0), 1);
+    assert!(buffer.0.lock().expect("buffer lock").is_empty());
+}

@@ -1,6 +1,19 @@
+use std::ffi::c_void;
+
 use super::common::{Handle, NativeHandle};
 
+pub type DataConsumerPutBytes = unsafe extern "C" fn(*mut c_void, *const c_void, usize) -> usize;
+
 unsafe extern "C" {
+    pub fn imageio_destination_create_with_data_consumer(
+        context: *mut c_void,
+        put_bytes: DataConsumerPutBytes,
+        release_context: unsafe extern "C" fn(*mut c_void),
+        type_identifier: *const i8,
+        image_count: usize,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> Handle;
     pub fn imageio_destination_copy_type_identifiers() -> Handle;
     pub fn imageio_destination_create_with_url(
         path: *const i8,
