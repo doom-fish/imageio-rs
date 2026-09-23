@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use std::ffi::CString;
+
 use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
 use crate::bridge::{self, source as ffi, Handle};
 use crate::error::ImageError;
@@ -44,11 +46,63 @@ impl From<i32> for SourceStatus {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct ImageSourceOptions {
+    pub type_identifier_hint: Option<String>,
+    pub should_cache: Option<bool>,
+}
+
+impl ImageSourceOptions {
+    fn bridge_values(&self) -> Result<(Option<CString>, i8), ImageError> {
+        let hint = self
+            .type_identifier_hint
+            .as_deref()
+            .map(bridge::cstring)
+            .transpose()?;
+        Ok((hint, should_cache_flag(self.should_cache)))
+    }
+}
+
+const fn should_cache_flag(should_cache: Option<bool>) -> i8 {
+    match should_cache {
+        None => -1,
+        Some(false) => 0,
+        Some(true) => 1,
+    }
+}
+
+#[derive(Debug)]
+pub struct DataProvider {
+    raw: Handle,
+}
+
+impl DataProvider {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, ImageError> {
+        let raw =
+            unsafe { ffi::imageio_data_provider_create_with_bytes(data.as_ptr(), data.len()) };
+        (!raw.is_null()).then_some(Self { raw }).ok_or_else(|| {
+            ImageError::OpenSourceFailed("CGDataProviderCreateWithCFData returned NULL".into())
+        })
+    }
+
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ImageError> {
+        let path = bridge::path_to_cstring(path.as_ref())?;
+        let raw = unsafe { ffi::imageio_data_provider_create_with_path(path.as_ptr()) };
+        (!raw.is_null()).then_some(Self { raw }).ok_or_else(|| {
+            ImageError::OpenSourceFailed("CGDataProviderCreateWithURL returned NULL".into())
+        })
+    }
+}
+
+crate::bridge::retained::imageio_retained!(DataProvider);
+
 /// Owned image source.
 #[derive(Debug)]
 pub struct ImageSource {
     raw: Handle,
     limits: DecodeLimits,
+    should_cache: Option<bool>,
 }
 
 impl ImageSource {
@@ -56,7 +110,25 @@ impl ImageSource {
         (!raw.is_null()).then_some(Self {
             raw,
             limits: DecodeLimits::DEFAULT,
+            should_cache: None,
         })
+    }
+
+    fn opened(
+        raw: Handle,
+        message: String,
+        fallback: &str,
+        options: &ImageSourceOptions,
+    ) -> Result<Self, ImageError> {
+        let mut source = Self::from_raw(raw).ok_or_else(|| {
+            ImageError::OpenSourceFailed(if message.is_empty() {
+                fallback.into()
+            } else {
+                message
+            })
+        })?;
+        source.should_cache = options.should_cache;
+        Ok(source)
     }
 
     pub(crate) const fn as_raw(&self) -> Handle {
@@ -71,45 +143,103 @@ impl ImageSource {
 
     /// Wraps `CGImageSourceCreateWithURL`.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self, ImageError> {
+        Self::from_path_with_options(path, &ImageSourceOptions::default())
+    }
+
+    pub fn from_path_with_options(
+        path: impl AsRef<Path>,
+        options: &ImageSourceOptions,
+    ) -> Result<Self, ImageError> {
         let path = bridge::path_to_cstring(path.as_ref())?;
+        let (hint, should_cache) = options.bridge_values()?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_source_create_from_path(path.as_ptr(), buffer, size)
+            ffi::imageio_source_create_from_path(
+                path.as_ptr(),
+                hint.as_ref().map_or(std::ptr::null(), |hint| hint.as_ptr()),
+                should_cache,
+                buffer,
+                size,
+            )
         });
-        Self::from_raw(raw).ok_or_else(|| {
-            ImageError::OpenSourceFailed(if message.is_empty() {
-                "imageio_source_create_from_path returned NULL".into()
-            } else {
-                message
-            })
-        })
+        Self::opened(
+            raw,
+            message,
+            "imageio_source_create_from_path returned NULL",
+            options,
+        )
     }
 
     /// Wraps `CGImageSourceCreateWithData`.
     pub fn from_bytes(data: &[u8]) -> Result<Self, ImageError> {
+        Self::from_bytes_with_options(data, &ImageSourceOptions::default())
+    }
+
+    pub fn from_bytes_with_options(
+        data: &[u8],
+        options: &ImageSourceOptions,
+    ) -> Result<Self, ImageError> {
+        let (hint, should_cache) = options.bridge_values()?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_source_create_from_bytes(data.as_ptr(), data.len(), buffer, size)
+            ffi::imageio_source_create_from_bytes(
+                data.as_ptr(),
+                data.len(),
+                hint.as_ref().map_or(std::ptr::null(), |hint| hint.as_ptr()),
+                should_cache,
+                buffer,
+                size,
+            )
         });
-        Self::from_raw(raw).ok_or_else(|| {
-            ImageError::OpenSourceFailed(if message.is_empty() {
-                "imageio_source_create_from_bytes returned NULL".into()
-            } else {
-                message
-            })
-        })
+        Self::opened(
+            raw,
+            message,
+            "imageio_source_create_from_bytes returned NULL",
+            options,
+        )
+    }
+
+    pub fn from_data_provider(
+        provider: &DataProvider,
+        options: &ImageSourceOptions,
+    ) -> Result<Self, ImageError> {
+        let (hint, should_cache) = options.bridge_values()?;
+        let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_create_with_data_provider(
+                provider.raw,
+                hint.as_ref().map_or(std::ptr::null(), |hint| hint.as_ptr()),
+                should_cache,
+                buffer,
+                size,
+            )
+        });
+        Self::opened(
+            raw,
+            message,
+            "imageio_source_create_with_data_provider returned NULL",
+            options,
+        )
     }
 
     /// Wraps `CGImageSourceCreateIncremental`.
     pub fn incremental() -> Result<Self, ImageError> {
+        Self::incremental_with_options(&ImageSourceOptions::default())
+    }
+
+    pub fn incremental_with_options(options: &ImageSourceOptions) -> Result<Self, ImageError> {
+        let (hint, should_cache) = options.bridge_values()?;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
-            ffi::imageio_source_create_incremental(buffer, size)
+            ffi::imageio_source_create_incremental(
+                hint.as_ref().map_or(std::ptr::null(), |hint| hint.as_ptr()),
+                should_cache,
+                buffer,
+                size,
+            )
         });
-        Self::from_raw(raw).ok_or_else(|| {
-            ImageError::OpenSourceFailed(if message.is_empty() {
-                "imageio_source_create_incremental returned NULL".into()
-            } else {
-                message
-            })
-        })
+        Self::opened(
+            raw,
+            message,
+            "imageio_source_create_incremental returned NULL",
+            options,
+        )
     }
 
     #[must_use]
@@ -162,6 +292,25 @@ impl ImageSource {
         } else {
             Err(ImageError::OpenSourceFailed(if message.is_empty() {
                 "imageio_source_update_data returned false".into()
+            } else {
+                message
+            }))
+        }
+    }
+
+    pub fn update_data_provider(
+        &mut self,
+        provider: &DataProvider,
+        is_final: bool,
+    ) -> Result<(), ImageError> {
+        let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
+            ffi::imageio_source_update_data_provider(self.raw, provider.raw, is_final, buffer, size)
+        });
+        if ok {
+            Ok(())
+        } else {
+            Err(ImageError::OpenSourceFailed(if message.is_empty() {
+                "imageio_source_update_data_provider returned false".into()
             } else {
                 message
             }))
@@ -237,6 +386,7 @@ impl ImageSource {
                 max_width,
                 max_height,
                 max_bytes,
+                should_cache_flag(self.should_cache),
                 &raw mut width,
                 &raw mut height,
                 &raw mut limit_exceeded,
@@ -282,6 +432,7 @@ impl Clone for ImageSource {
         Self {
             raw: bridge::retain(self.raw),
             limits: self.limits,
+            should_cache: self.should_cache,
         }
     }
 }
@@ -290,7 +441,44 @@ crate::bridge::retained::imageio_retained!(ImageSource, drop_only);
 
 #[cfg(test)]
 mod tests {
-    use super::SourceStatus;
+    use super::{should_cache_flag, ImageSourceOptions, SourceStatus};
+    use crate::error::ImageError;
+
+    #[test]
+    fn should_cache_maps_to_a_tri_state_flag() {
+        assert_eq!(should_cache_flag(None), -1);
+        assert_eq!(should_cache_flag(Some(false)), 0);
+        assert_eq!(should_cache_flag(Some(true)), 1);
+    }
+
+    #[test]
+    fn source_options_convert_the_type_hint() {
+        let (hint, should_cache) = ImageSourceOptions::default()
+            .bridge_values()
+            .expect("default options");
+        assert!(hint.is_none());
+        assert_eq!(should_cache, -1);
+
+        let options = ImageSourceOptions {
+            type_identifier_hint: Some("public.heic".into()),
+            should_cache: Some(true),
+        };
+        let (hint, should_cache) = options.bridge_values().expect("hinted options");
+        assert_eq!(
+            hint.as_deref().map(std::ffi::CStr::to_bytes),
+            Some(&b"public.heic"[..])
+        );
+        assert_eq!(should_cache, 1);
+
+        let invalid = ImageSourceOptions {
+            type_identifier_hint: Some("public\0png".into()),
+            should_cache: None,
+        };
+        assert!(matches!(
+            invalid.bridge_values(),
+            Err(ImageError::Unknown(_))
+        ));
+    }
 
     #[test]
     fn source_status_maps_known_numeric_values() {

@@ -4,19 +4,41 @@ unsafe extern "C" {
     pub fn imageio_source_copy_type_identifiers() -> Handle;
     pub fn imageio_source_create_from_path(
         path: *const i8,
+        type_hint: *const i8,
+        should_cache: i8,
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;
     pub fn imageio_source_create_from_bytes(
         bytes: *const u8,
         length: usize,
+        type_hint: *const i8,
+        should_cache: i8,
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;
     pub fn imageio_source_create_incremental(
+        type_hint: *const i8,
+        should_cache: i8,
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;
+    pub fn imageio_data_provider_create_with_bytes(bytes: *const u8, length: usize) -> Handle;
+    pub fn imageio_data_provider_create_with_path(path: *const i8) -> Handle;
+    pub fn imageio_source_create_with_data_provider(
+        provider: Handle,
+        type_hint: *const i8,
+        should_cache: i8,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> Handle;
+    pub fn imageio_source_update_data_provider(
+        raw: Handle,
+        provider: Handle,
+        is_final: bool,
+        error_buffer: *mut i8,
+        error_buffer_size: usize,
+    ) -> bool;
     pub fn imageio_source_copy_type(raw: Handle) -> Handle;
     pub fn imageio_source_get_count(raw: Handle) -> usize;
     pub fn imageio_source_get_status(raw: Handle) -> i32;
@@ -56,6 +78,7 @@ unsafe extern "C" {
         max_width: usize,
         max_height: usize,
         max_bytes: usize,
+        should_cache: i8,
         width_out: *mut usize,
         height_out: *mut usize,
         limit_exceeded: *mut bool,

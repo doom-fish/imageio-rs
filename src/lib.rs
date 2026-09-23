@@ -45,7 +45,7 @@ pub use metadata::{
 };
 pub use properties::{ImageProperties, MutableProperties};
 pub use proraw::{ProRawBuilder, ProRawProperties};
-pub use source::{ImageSource, SourceStatus};
+pub use source::{DataProvider, ImageSource, ImageSourceOptions, SourceStatus};
 pub use thumbnail::{create_thumbnail, ThumbnailOptions};
 
 /// Common imports.
@@ -71,6 +71,6 @@ pub mod prelude {
     };
     pub use crate::properties::{ImageProperties, MutableProperties};
     pub use crate::proraw::{ProRawBuilder, ProRawProperties};
-    pub use crate::source::{ImageSource, SourceStatus};
+    pub use crate::source::{DataProvider, ImageSource, ImageSourceOptions, SourceStatus};
     pub use crate::thumbnail::{create_thumbnail, ThumbnailOptions};
 }
