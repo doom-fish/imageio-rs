@@ -9,7 +9,7 @@ description = "Safe Rust bindings for Apple's ImageIO framework with a Swift bri
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["image", "png", "jpeg", "heic", "macos"]
 categories = ["api-bindings", "os::macos-apis", "multimedia::images"]
-rust-version = "1.76"
+rust-version = "1.82"
 readme = "README.md"
 build = "build.rs"
 include = [
@@ -43,8 +43,8 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
-apple-cf = { version = ">=0.10, <0.11", default-features = false, features = ["cg"] }
-doom-fish-utils = { version = ">=0.4, <0.5", default-features = false }
+apple-cf = { path = "../apple-cf-rs", version = ">=0.11, <0.12", default-features = false, features = ["cg"] }
+doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.4.1, <0.5", default-features = false }
 
 [dev-dependencies]
 pollster = "0.3"
