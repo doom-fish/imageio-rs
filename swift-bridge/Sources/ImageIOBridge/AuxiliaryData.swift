@@ -17,8 +17,11 @@ final class AuxiliaryDataInfoBox {
         if let value = dictionary[kCGImageAuxiliaryDataInfoDataDescription] as? NSDictionary {
             description = NSDictionary(dictionary: value)
         }
-        if dictionary[kCGImageAuxiliaryDataInfoMetadata] != nil {
-            metadata = dictionary[kCGImageAuxiliaryDataInfoMetadata] as! CGImageMetadata
+        if let value = dictionary[kCGImageAuxiliaryDataInfoMetadata] {
+            let cfValue = value as CFTypeRef
+            if CFGetTypeID(cfValue) == CGImageMetadataGetTypeID() {
+                metadata = unsafeBitCast(cfValue, to: CGImageMetadata.self)
+            }
         }
         if #available(macOS 15.0, *), let value = dictionary[kCGImageAuxiliaryDataInfoColorSpace] {
             let cfValue = value as CFTypeRef
