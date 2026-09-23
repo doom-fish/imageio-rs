@@ -3,17 +3,46 @@ import ImageIO
 
 typealias ImageAnimationCallback = @convention(c) (Int, Int, Int, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
 
+private let animationSucceeded: Int32 = 0
+private let animationFailed: Int32 = 1
+private let animationTimedOut: Int32 = 2
+private let animationLimitExceeded: Int32 = 3
+
+private struct AnimationFailure {
+    let status: Int32
+    let message: String
+    let width: Int
+    let height: Int
+}
+
 private final class AnimationWaitState {
+    private let lock = NSLock()
     private let expectedCallbackCount: Int?
     private var callbackCount = 0
-    private(set) var finished = false
-    private(set) var failureMessage: String?
+    private var finished = false
+    private var ended = false
+    private var detached = false
+    private var inCallback = false
+    private var failure: AnimationFailure?
 
     init(expectedCallbackCount: Int?) {
         self.expectedCallbackCount = expectedCallbackCount
     }
 
+    func beginFrame() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !finished, !detached, !inCallback else {
+            return false
+        }
+        inCallback = true
+        return true
+    }
+
     func completeFrame(keepGoing: Bool) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        inCallback = false
         callbackCount += 1
         let reachedNaturalEnd = expectedCallbackCount.map { callbackCount >= $0 } ?? false
         let shouldStop = !keepGoing || reachedNaturalEnd
@@ -23,14 +52,111 @@ private final class AnimationWaitState {
         return shouldStop
     }
 
-    func fail(_ message: String) {
-        failureMessage = message
+    func isReentrant() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return inCallback
+    }
+
+    func fail(_ status: Int32, _ message: String, width: Int = 0, height: Int = 0) {
+        lock.lock()
+        defer { lock.unlock() }
+        if failure == nil {
+            failure = AnimationFailure(status: status, message: message, width: width, height: height)
+        }
         finished = true
     }
 
-    func wait() {
-        while !finished {
-            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.01))
+    func animationEnded() {
+        lock.lock()
+        ended = true
+        lock.unlock()
+    }
+
+    private func isDone() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return finished || ended
+    }
+
+    func wait(timeoutNanoseconds: UInt64) -> Bool {
+        let deadline = timeoutNanoseconds == UInt64.max
+            ? Date.distantFuture
+            : Date(timeIntervalSinceNow: Double(timeoutNanoseconds) / 1_000_000_000)
+        while !isDone() {
+            let now = Date()
+            if now >= deadline {
+                return false
+            }
+            RunLoop.main.run(until: min(deadline, now.addingTimeInterval(0.01)))
+        }
+        return true
+    }
+
+    func detach() -> AnimationFailure? {
+        lock.lock()
+        defer { lock.unlock() }
+        detached = true
+        return failure
+    }
+}
+
+private final class AnimationEndSentinel {
+    private let state: AnimationWaitState
+
+    init(_ state: AnimationWaitState) {
+        self.state = state
+    }
+
+    deinit {
+        state.animationEnded()
+    }
+}
+
+private func makeAnimationBlock(
+    state: AnimationWaitState,
+    limits: DecodeLimits,
+    userData: UnsafeMutableRawPointer?,
+    callback: @escaping ImageAnimationCallback
+) -> (Int, CGImage, UnsafeMutablePointer<Bool>) -> Void {
+    let sentinel = AnimationEndSentinel(state)
+    return { index, image, stop in
+        withExtendedLifetime(sentinel) {
+            guard Thread.isMainThread else {
+                state.fail(animationFailed, "CGImageAnimation callback was not delivered on the main queue")
+                stop.pointee = true
+                return
+            }
+            if state.isReentrant() {
+                state.fail(animationFailed, "animation callback re-entered the main run loop")
+                stop.pointee = true
+                return
+            }
+            guard state.beginFrame() else {
+                stop.pointee = true
+                return
+            }
+            guard limits.allows(width: image.width, height: image.height) else {
+                _ = state.completeFrame(keepGoing: false)
+                state.fail(
+                    animationLimitExceeded,
+                    "animation frame dimensions exceed the decode limits",
+                    width: image.width,
+                    height: image.height
+                )
+                stop.pointee = true
+                return
+            }
+            guard let data = decodeCGImageToBGRA(image) else {
+                _ = state.completeFrame(keepGoing: false)
+                state.fail(animationFailed, "failed to decode animation frame to BGRA")
+                stop.pointee = true
+                return
+            }
+            let keepGoing = callback(index, image.width, image.height, retainBox(data), userData)
+            if state.completeFrame(keepGoing: keepGoing) {
+                stop.pointee = true
+            }
         }
     }
 }
@@ -101,59 +227,55 @@ private func animationStatusMessage(_ status: OSStatus) -> String {
 private func runAnimation(
     _ source: CGImageSource,
     userData: UnsafeMutableRawPointer?,
-    callback: ImageAnimationCallback,
+    callback: @escaping ImageAnimationCallback,
+    limits: DecodeLimits,
+    timeoutNanoseconds: UInt64,
+    widthOut: UnsafeMutablePointer<Int>?,
+    heightOut: UnsafeMutablePointer<Int>?,
     errorBuffer: UnsafeMutablePointer<CChar>?,
     errorBufferSize: Int,
     start: (@escaping (Int, CGImage, UnsafeMutablePointer<Bool>) -> Void) -> OSStatus
-) -> Bool {
+) -> Int32 {
     guard Thread.isMainThread else {
         writeCString(
             "synchronous animation must be started on the process main thread",
             into: errorBuffer,
             capacity: errorBufferSize
         )
-        return false
+        return animationFailed
     }
 
     let plan = expectedAnimationCallbackCount(source)
     if let error = plan.error {
         writeCString(error, into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
 
     let state = AnimationWaitState(expectedCallbackCount: plan.count)
-    let status = start { index, image, stop in
-        guard Thread.isMainThread else {
-            state.fail("CGImageAnimation callback was not delivered on the main queue")
-            stop.pointee = true
-            return
-        }
-        guard let data = decodeCGImageToBGRA(image) else {
-            state.fail("failed to decode animation frame to BGRA")
-            stop.pointee = true
-            return
-        }
-        let keepGoing = callback(index, image.width, image.height, retainBox(data), userData)
-        if state.completeFrame(keepGoing: keepGoing) {
-            stop.pointee = true
-        }
-    }
+    let status = start(makeAnimationBlock(state: state, limits: limits, userData: userData, callback: callback))
 
     guard status == 0 else {
+        _ = state.detach()
         writeCString(
             "CGImageAnimation failed with status \(status): \(animationStatusMessage(status))",
             into: errorBuffer,
             capacity: errorBufferSize
         )
-        return false
+        return animationFailed
     }
 
-    state.wait()
-    if let failure = state.failureMessage {
-        writeCString(failure, into: errorBuffer, capacity: errorBufferSize)
-        return false
+    let completed = state.wait(timeoutNanoseconds: timeoutNanoseconds)
+    if let failure = state.detach() {
+        widthOut?.pointee = failure.width
+        heightOut?.pointee = failure.height
+        writeCString(failure.message, into: errorBuffer, capacity: errorBufferSize)
+        return failure.status
     }
-    return true
+    guard completed else {
+        writeCString("animation did not finish before the timeout", into: errorBuffer, capacity: errorBufferSize)
+        return animationTimedOut
+    }
+    return animationSucceeded
 }
 
 @_cdecl("imageio_animate_image_at_path")
@@ -161,26 +283,36 @@ func imageioAnimateImageAtPath(
     _ path: UnsafePointer<CChar>?,
     _ userData: UnsafeMutableRawPointer?,
     _ callback: ImageAnimationCallback?,
+    _ maxWidth: Int,
+    _ maxHeight: Int,
+    _ maxBytes: Int,
+    _ timeoutNanoseconds: UInt64,
+    _ widthOut: UnsafeMutablePointer<Int>?,
+    _ heightOut: UnsafeMutablePointer<Int>?,
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
-) -> Bool {
+) -> Int32 {
     guard let callback else {
         writeCString("animation callback was nil", into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
     guard let path else {
         writeCString("invalid animation path", into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
     let url = URL(fileURLWithPath: String(cString: path)) as CFURL
     guard let source = CGImageSourceCreateWithURL(url, nil) else {
         writeCString("CGImageSourceCreateWithURL returned nil", into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
     return runAnimation(
         source,
         userData: userData,
         callback: callback,
+        limits: DecodeLimits(maxWidth: maxWidth, maxHeight: maxHeight, maxBytes: maxBytes),
+        timeoutNanoseconds: timeoutNanoseconds,
+        widthOut: widthOut,
+        heightOut: heightOut,
         errorBuffer: errorBuffer,
         errorBufferSize: errorBufferSize
     ) { block in
@@ -194,22 +326,32 @@ func imageioAnimateImageData(
     _ length: Int,
     _ userData: UnsafeMutableRawPointer?,
     _ callback: ImageAnimationCallback?,
+    _ maxWidth: Int,
+    _ maxHeight: Int,
+    _ maxBytes: Int,
+    _ timeoutNanoseconds: UInt64,
+    _ widthOut: UnsafeMutablePointer<Int>?,
+    _ heightOut: UnsafeMutablePointer<Int>?,
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
-) -> Bool {
+) -> Int32 {
     guard let bytes, let callback, length >= 0 else {
         writeCString("invalid animation byte buffer or callback", into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
     let data = Data(bytes: bytes, count: length) as CFData
     guard let source = CGImageSourceCreateWithData(data, nil) else {
         writeCString("CGImageSourceCreateWithData returned nil", into: errorBuffer, capacity: errorBufferSize)
-        return false
+        return animationFailed
     }
     return runAnimation(
         source,
         userData: userData,
         callback: callback,
+        limits: DecodeLimits(maxWidth: maxWidth, maxHeight: maxHeight, maxBytes: maxBytes),
+        timeoutNanoseconds: timeoutNanoseconds,
+        widthOut: widthOut,
+        heightOut: heightOut,
         errorBuffer: errorBuffer,
         errorBufferSize: errorBufferSize
     ) { block in

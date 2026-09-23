@@ -13,10 +13,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         AnimatedPngProperties::from_properties(&props)?.ok_or("missing APNG properties")?;
 
     let mut frames = 0_usize;
-    animate_image(common::animated_gif_path(), |_, _| {
-        frames += 1;
-        frames < 2
-    })?;
+    animate_image(
+        common::animated_gif_path(),
+        AnimationOptions::default(),
+        |_, _| {
+            frames += 1;
+            frames < 2
+        },
+    )?;
 
     println!("loop_count={:?} frames={frames}", parsed.loop_count);
     Ok(())

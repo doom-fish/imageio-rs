@@ -30,7 +30,7 @@ pub mod source;
 pub mod thumbnail;
 
 pub use animated_png::{AnimatedPngBuilder, AnimatedPngProperties};
-pub use animation::{animate_image, animate_image_from_bytes};
+pub use animation::{animate_image, animate_image_from_bytes, AnimationOptions};
 pub use auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType, CGColorSpace};
 pub use destination::ImageDestination;
 pub use error::ImageError;
@@ -51,7 +51,7 @@ pub use thumbnail::{create_thumbnail, ThumbnailOptions};
 /// Common imports.
 pub mod prelude {
     pub use crate::animated_png::{AnimatedPngBuilder, AnimatedPngProperties};
-    pub use crate::animation::{animate_image, animate_image_from_bytes};
+    pub use crate::animation::{animate_image, animate_image_from_bytes, AnimationOptions};
     #[cfg(feature = "async")]
     pub use crate::async_api::{
         IncrementalDecodeStream, IncrementalDecodeUpdate, IncrementalImageDecoder,

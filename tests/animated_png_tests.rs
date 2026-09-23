@@ -21,10 +21,14 @@ fn animated_png_builder_round_trips_properties() {
 #[test]
 fn synchronous_animation_rejects_non_main_thread_callers() {
     let mut called = false;
-    let error = animate_image(common::animated_gif_path(), |_, _| {
-        called = true;
-        false
-    })
+    let error = animate_image(
+        common::animated_gif_path(),
+        AnimationOptions::default(),
+        |_, _| {
+            called = true;
+            false
+        },
+    )
     .expect_err("worker-thread animation must fail");
 
     assert!(!called);
