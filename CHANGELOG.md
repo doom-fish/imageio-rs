@@ -1,5 +1,37 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.12.0] - Unreleased
+
+### Security
+
+- Full decodes had no size limit, so a small file declaring huge dimensions exhausted memory: a 2.4 MB PNG that claims 40000x40000 pixels made `decode_image_at_index` allocate 6.4 GB and copy it again. `ImageSource`, `create_thumbnail`, `ImageDestination::add_image_from_source` and the animation helpers now enforce `DecodeLimits` (default 16384 pixels per side and 256 MiB of BGRA output). Declared dimensions are checked before decoding and the created image before allocating; violations return `ImageError::LimitExceeded`. Thumbnail sizes, including `0` (full size), are capped to the limits.
+
+### Fixed
+
+- `animate_image` and `animate_image_from_bytes` spun the main run loop with no timeout and hung when ImageIO delivered fewer frames than the metadata implied (a single-frame GIF with an infinite loop count gets one callback). They now finish when ImageIO releases the animation, time out with `ImageError::Timeout`, never call back into Rust after returning or re-entrantly, and keep their wait state behind a lock.
+- The auxiliary-data bridge cast `kCGImageAuxiliaryDataInfoMetadata` with an unchecked `as! CGImageMetadata`; it now checks the Core Foundation type ID.
+- `COVERAGE_AUDIT_V2.md` listed wrapper names that do not exist, including safe data-provider and data-consumer wrappers; it now lists the real safe wrapper of every ImageIO function, and `COVERAGE.md` / `COVERAGE_AUDIT.md` mark the seven functions that are only reachable through `raw-ffi`.
+
+### Changed
+
+- **BREAKING:** `animate_image` and `animate_image_from_bytes` take an `AnimationOptions` argument (timeout, default 60 s, and decode limits).
+- **BREAKING:** `ImageError` has new `LimitExceeded` and `Timeout` variants.
+- **BREAKING:** decodes, thumbnails and `add_image_from_source` over the default limits now fail; raise them with `ImageSource::set_decode_limits`.
+- Requires `apple-cf` `>=0.11, <0.12`, `doom-fish-utils` `>=0.4.1, <0.5` and Rust 1.82.
+
+### Added
+
+- `DecodeLimits`, `ImageSource::decode_limits` and `ImageSource::set_decode_limits`.
+- `ImageSourceOptions` (`kCGImageSourceTypeIdentifierHint` and `kCGImageSourceShouldCache`) with `ImageSource::from_path_with_options`, `from_bytes_with_options` and `incremental_with_options`.
+- `DataProvider`, `ImageSource::from_data_provider` and `ImageSource::update_data_provider` (`CGImageSourceCreateWithDataProvider`, `CGImageSourceUpdateDataProvider`).
+- `ImageDestination::to_writer`, which streams encoded output to a `Write` value through `CGImageDestinationCreateWithDataConsumer`.
+- `AnimationOptions`.
+
 ## [0.11.0] - 2026-09-07
 
 ### Migration notes (breaking)
