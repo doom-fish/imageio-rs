@@ -42,7 +42,8 @@ impl ImageProperties {
     pub fn i64(&self, key: &str) -> Result<Option<i64>, ImageError> {
         let key = bridge::cstring(key)?;
         let mut value = 0_i64;
-        let found = unsafe { ffi::imageio_properties_get_i64(self.raw, key.as_ptr(), &mut value) };
+        let found =
+            unsafe { ffi::imageio_properties_get_i64(self.raw, key.as_ptr(), &raw mut value) };
         Ok(found.then_some(value))
     }
 
@@ -50,7 +51,8 @@ impl ImageProperties {
     pub fn f64(&self, key: &str) -> Result<Option<f64>, ImageError> {
         let key = bridge::cstring(key)?;
         let mut value = 0.0_f64;
-        let found = unsafe { ffi::imageio_properties_get_f64(self.raw, key.as_ptr(), &mut value) };
+        let found =
+            unsafe { ffi::imageio_properties_get_f64(self.raw, key.as_ptr(), &raw mut value) };
         Ok(found.then_some(value))
     }
 
@@ -58,7 +60,8 @@ impl ImageProperties {
     pub fn bool(&self, key: &str) -> Result<Option<bool>, ImageError> {
         let key = bridge::cstring(key)?;
         let mut value = false;
-        let found = unsafe { ffi::imageio_properties_get_bool(self.raw, key.as_ptr(), &mut value) };
+        let found =
+            unsafe { ffi::imageio_properties_get_bool(self.raw, key.as_ptr(), &raw mut value) };
         Ok(found.then_some(value))
     }
 

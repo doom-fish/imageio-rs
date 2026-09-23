@@ -52,8 +52,8 @@ pub fn create_thumbnail(
             options.max_pixel_size,
             options.always_create,
             options.transform,
-            &mut width,
-            &mut height,
+            &raw mut width,
+            &raw mut height,
             buffer,
             size,
         )

@@ -218,8 +218,8 @@ impl ImageSource {
             ffi::imageio_source_create_bgra_at_index(
                 self.raw,
                 index,
-                &mut width,
-                &mut height,
+                &raw mut width,
+                &raw mut height,
                 buffer,
                 size,
             )
