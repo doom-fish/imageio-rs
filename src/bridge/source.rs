@@ -53,8 +53,12 @@ unsafe extern "C" {
     pub fn imageio_source_create_bgra_at_index(
         raw: Handle,
         index: usize,
+        max_width: usize,
+        max_height: usize,
+        max_bytes: usize,
         width_out: *mut usize,
         height_out: *mut usize,
+        limit_exceeded: *mut bool,
         error_buffer: *mut i8,
         error_buffer_size: usize,
     ) -> Handle;

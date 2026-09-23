@@ -22,6 +22,7 @@ pub mod error;
 pub mod ffi;
 pub mod heif;
 pub mod image;
+pub mod limits;
 pub mod metadata;
 pub mod properties;
 pub mod proraw;
@@ -38,6 +39,7 @@ pub use image::{
     convert_format, copy_image_source, decode_bgra, decode_bgra_from_bytes, encode_bgra_to_bytes,
     read_metadata, DecodedImage, ImageFormat, ImageMetadata,
 };
+pub use limits::DecodeLimits;
 pub use metadata::{
     Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
 };
@@ -63,6 +65,7 @@ pub mod prelude {
         convert_format, copy_image_source, decode_bgra, decode_bgra_from_bytes,
         encode_bgra_to_bytes, read_metadata, DecodedImage, ImageFormat, ImageMetadata,
     };
+    pub use crate::limits::DecodeLimits;
     pub use crate::metadata::{
         Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
     };

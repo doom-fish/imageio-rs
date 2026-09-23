@@ -56,6 +56,53 @@ private func checkedBgraLayout(width: Int, height: Int) -> (bytesPerRow: Int, by
     return (bytesPerRow, byteCount)
 }
 
+struct DecodeLimits {
+    let maxWidth: Int
+    let maxHeight: Int
+    let maxBytes: Int
+
+    func allows(width: Int, height: Int) -> Bool {
+        guard width >= 0, height >= 0, width <= maxWidth, height <= maxHeight else {
+            return false
+        }
+        let (bytesPerRow, rowOverflow) = width.multipliedReportingOverflow(by: 4)
+        let (byteCount, lengthOverflow) = bytesPerRow.multipliedReportingOverflow(by: height)
+        return !rowOverflow && !lengthOverflow && byteCount <= maxBytes
+    }
+}
+
+func reportLimitExceeded(
+    width: Int,
+    height: Int,
+    widthOut: UnsafeMutablePointer<Int>?,
+    heightOut: UnsafeMutablePointer<Int>?,
+    limitExceeded: UnsafeMutablePointer<Bool>?,
+    errorBuffer: UnsafeMutablePointer<CChar>?,
+    errorBufferSize: Int
+) {
+    widthOut?.pointee = width
+    heightOut?.pointee = height
+    limitExceeded?.pointee = true
+    writeCString("image dimensions exceed the decode limits", into: errorBuffer, capacity: errorBufferSize)
+}
+
+func declaredPixelSize(_ source: CGImageSource, at index: Int) -> (width: Int, height: Int)? {
+    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as NSDictionary?,
+          let width = properties[kCGImagePropertyPixelWidth] as? NSNumber,
+          let height = properties[kCGImagePropertyPixelHeight] as? NSNumber
+    else {
+        return nil
+    }
+    return (width.intValue, height.intValue)
+}
+
+func shouldCacheOptions(_ shouldCache: Int8) -> CFDictionary? {
+    guard shouldCache >= 0 else {
+        return nil
+    }
+    return [kCGImageSourceShouldCache: shouldCache != 0] as CFDictionary
+}
+
 func decodeCGImageToBGRA(_ image: CGImage) -> Data? {
     let width = image.width
     let height = image.height

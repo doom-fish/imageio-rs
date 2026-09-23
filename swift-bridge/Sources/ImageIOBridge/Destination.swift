@@ -209,6 +209,12 @@ public func imageioDestinationAddImageFromSource(
     _ sourceRaw: UnsafeMutableRawPointer?,
     _ index: Int,
     _ properties: UnsafeMutableRawPointer?,
+    _ maxWidth: Int,
+    _ maxHeight: Int,
+    _ maxBytes: Int,
+    _ widthOut: UnsafeMutablePointer<Int>?,
+    _ heightOut: UnsafeMutablePointer<Int>?,
+    _ limitExceeded: UnsafeMutablePointer<Bool>?,
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> Bool {
@@ -225,6 +231,25 @@ public func imageioDestinationAddImageFromSource(
         return false
     }
     let source = unretainedBox(sourceRaw, as: CGImageSource.self).value
+    let limits = DecodeLimits(maxWidth: maxWidth, maxHeight: maxHeight, maxBytes: maxBytes)
+    let size = declaredPixelSize(source, at: index)
+        ?? CGImageSourceCreateImageAtIndex(source, index, shouldCacheOptions(0)).map { (width: $0.width, height: $0.height) }
+    guard let size else {
+        writeCString("image source has no image at the requested index", into: errorBuffer, capacity: errorBufferSize)
+        return false
+    }
+    guard limits.allows(width: size.width, height: size.height) else {
+        reportLimitExceeded(
+            width: size.width,
+            height: size.height,
+            widthOut: widthOut,
+            heightOut: heightOut,
+            limitExceeded: limitExceeded,
+            errorBuffer: errorBuffer,
+            errorBufferSize: errorBufferSize
+        )
+        return false
+    }
     CGImageDestinationAddImageFromSource(state.destination, source, index, destinationProperties(properties))
     return true
 }

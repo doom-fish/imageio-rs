@@ -43,21 +43,43 @@ pub fn create_thumbnail(
     index: usize,
     options: ThumbnailOptions,
 ) -> Result<DecodedImage, ImageError> {
+    let limits = source.decode_limits();
+    let max_pixel_size = limits.thumbnail_max_pixel_size(options.max_pixel_size);
+    if max_pixel_size == 0 {
+        return Err(ImageError::LimitExceeded {
+            width: 1,
+            height: 1,
+            limits,
+        });
+    }
+    let (max_width, max_height, max_bytes) = limits.bridge_values();
     let mut width = 0_usize;
     let mut height = 0_usize;
+    let mut limit_exceeded = false;
     let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
         ffi::imageio_source_create_thumbnail_bgra_at_index(
             source.as_raw(),
             index,
-            options.max_pixel_size,
+            max_pixel_size,
             options.always_create,
             options.transform,
+            max_width,
+            max_height,
+            max_bytes,
             &raw mut width,
             &raw mut height,
+            &raw mut limit_exceeded,
             buffer,
             size,
         )
     });
+    if limit_exceeded {
+        return Err(ImageError::LimitExceeded {
+            width,
+            height,
+            limits,
+        });
+    }
     if raw.is_null() {
         return Err(ImageError::DecodeFailed(if message.is_empty() {
             "imageio_source_create_thumbnail_bgra_at_index returned NULL".into()

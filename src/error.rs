@@ -1,6 +1,9 @@
 //! Errors returned by the `imageio` crate.
 
 use core::fmt;
+use std::time::Duration;
+
+use crate::limits::DecodeLimits;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -20,6 +23,12 @@ pub enum ImageError {
     UnsupportedFormat(String),
     /// `ImageIO` returned an error that does not fit a more specific category.
     Unknown(String),
+    LimitExceeded {
+        width: usize,
+        height: usize,
+        limits: DecodeLimits,
+    },
+    Timeout(Duration),
 }
 
 impl fmt::Display for ImageError {
@@ -32,6 +41,16 @@ impl fmt::Display for ImageError {
             Self::EncodeFailed(m) => write!(f, "encode failed: {m}"),
             Self::UnsupportedFormat(m) => write!(f, "unsupported format: {m}"),
             Self::Unknown(m) => write!(f, "imageio error: {m}"),
+            Self::LimitExceeded {
+                width,
+                height,
+                limits,
+            } => write!(
+                f,
+                "{width}x{height} image exceeds the decode limits ({}x{} pixels, {} bytes)",
+                limits.max_width, limits.max_height, limits.max_bytes
+            ),
+            Self::Timeout(timeout) => write!(f, "timed out after {timeout:?}"),
         }
     }
 }
@@ -40,7 +59,10 @@ impl std::error::Error for ImageError {}
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::ImageError;
+    use crate::limits::DecodeLimits;
 
     #[test]
     fn display_formats_path_and_source_open_errors() {
@@ -75,6 +97,23 @@ mod tests {
         assert_eq!(
             ImageError::Unknown("bridge returned NULL".to_owned()).to_string(),
             "imageio error: bridge returned NULL"
+        );
+    }
+
+    #[test]
+    fn display_formats_limit_and_timeout_errors() {
+        assert_eq!(
+            ImageError::LimitExceeded {
+                width: 40_000,
+                height: 40_000,
+                limits: DecodeLimits::default(),
+            }
+            .to_string(),
+            "40000x40000 image exceeds the decode limits (16384x16384 pixels, 268435456 bytes)"
+        );
+        assert_eq!(
+            ImageError::Timeout(Duration::from_millis(250)).to_string(),
+            "timed out after 250ms"
         );
     }
 

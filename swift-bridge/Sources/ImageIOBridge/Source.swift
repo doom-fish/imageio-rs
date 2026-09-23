@@ -205,8 +205,12 @@ public func imageioSourceRemoveCacheAtIndex(_ raw: UnsafeMutableRawPointer?, _ i
 public func imageioSourceCreateBgraAtIndex(
     _ raw: UnsafeMutableRawPointer?,
     _ index: Int,
+    _ maxWidth: Int,
+    _ maxHeight: Int,
+    _ maxBytes: Int,
     _ widthOut: UnsafeMutablePointer<Int>?,
     _ heightOut: UnsafeMutablePointer<Int>?,
+    _ limitExceeded: UnsafeMutablePointer<Bool>?,
     _ errorBuffer: UnsafeMutablePointer<CChar>?,
     _ errorBufferSize: Int
 ) -> UnsafeMutableRawPointer? {
@@ -214,8 +218,35 @@ public func imageioSourceCreateBgraAtIndex(
         return nil
     }
     let source = unretainedBox(raw, as: CGImageSource.self).value
+    let limits = DecodeLimits(maxWidth: maxWidth, maxHeight: maxHeight, maxBytes: maxBytes)
+    if let declared = declaredPixelSize(source, at: index),
+       !limits.allows(width: declared.width, height: declared.height)
+    {
+        reportLimitExceeded(
+            width: declared.width,
+            height: declared.height,
+            widthOut: widthOut,
+            heightOut: heightOut,
+            limitExceeded: limitExceeded,
+            errorBuffer: errorBuffer,
+            errorBufferSize: errorBufferSize
+        )
+        return nil
+    }
     guard let image = CGImageSourceCreateImageAtIndex(source, index, nil) else {
         writeCString("CGImageSourceCreateImageAtIndex returned nil", into: errorBuffer, capacity: errorBufferSize)
+        return nil
+    }
+    guard limits.allows(width: image.width, height: image.height) else {
+        reportLimitExceeded(
+            width: image.width,
+            height: image.height,
+            widthOut: widthOut,
+            heightOut: heightOut,
+            limitExceeded: limitExceeded,
+            errorBuffer: errorBuffer,
+            errorBufferSize: errorBufferSize
+        )
         return nil
     }
     guard let data = decodeCGImageToBGRA(image) else {

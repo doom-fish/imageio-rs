@@ -270,16 +270,34 @@ impl ImageDestination {
     ) -> Result<(), ImageError> {
         self.ensure_open("add an image")?;
         let properties_raw = properties.map_or(std::ptr::null_mut(), ImageProperties::as_raw);
+        let limits = source.decode_limits();
+        let (max_width, max_height, max_bytes) = limits.bridge_values();
+        let mut width = 0_usize;
+        let mut height = 0_usize;
+        let mut limit_exceeded = false;
         let (ok, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_destination_add_image_from_source(
                 self.raw,
                 source.as_raw(),
                 index,
                 properties_raw,
+                max_width,
+                max_height,
+                max_bytes,
+                &raw mut width,
+                &raw mut height,
+                &raw mut limit_exceeded,
                 buffer,
                 size,
             )
         });
+        if limit_exceeded {
+            return Err(ImageError::LimitExceeded {
+                width,
+                height,
+                limits,
+            });
+        }
         if ok {
             Ok(())
         } else {

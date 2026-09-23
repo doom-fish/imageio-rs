@@ -6,6 +6,7 @@ use crate::auxiliary_data::{AuxiliaryDataInfo, AuxiliaryDataType};
 use crate::bridge::{self, source as ffi, Handle};
 use crate::error::ImageError;
 use crate::image::DecodedImage;
+use crate::limits::DecodeLimits;
 use crate::metadata::Metadata;
 use crate::properties::ImageProperties;
 
@@ -47,11 +48,15 @@ impl From<i32> for SourceStatus {
 #[derive(Debug)]
 pub struct ImageSource {
     raw: Handle,
+    limits: DecodeLimits,
 }
 
 impl ImageSource {
     pub(crate) fn from_raw(raw: Handle) -> Option<Self> {
-        (!raw.is_null()).then_some(Self { raw })
+        (!raw.is_null()).then_some(Self {
+            raw,
+            limits: DecodeLimits::DEFAULT,
+        })
     }
 
     pub(crate) const fn as_raw(&self) -> Handle {
@@ -105,6 +110,15 @@ impl ImageSource {
                 message
             })
         })
+    }
+
+    #[must_use]
+    pub const fn decode_limits(&self) -> DecodeLimits {
+        self.limits
+    }
+
+    pub fn set_decode_limits(&mut self, limits: DecodeLimits) {
+        self.limits = limits;
     }
 
     #[must_use]
@@ -212,18 +226,31 @@ impl ImageSource {
 
     /// Wraps `CGImageSourceCreateImageAtIndex`.
     pub fn decode_image_at_index(&self, index: usize) -> Result<DecodedImage, ImageError> {
+        let (max_width, max_height, max_bytes) = self.limits.bridge_values();
         let mut width = 0_usize;
         let mut height = 0_usize;
+        let mut limit_exceeded = false;
         let (raw, message) = bridge::with_error_buffer(|buffer, size| unsafe {
             ffi::imageio_source_create_bgra_at_index(
                 self.raw,
                 index,
+                max_width,
+                max_height,
+                max_bytes,
                 &raw mut width,
                 &raw mut height,
+                &raw mut limit_exceeded,
                 buffer,
                 size,
             )
         });
+        if limit_exceeded {
+            return Err(ImageError::LimitExceeded {
+                width,
+                height,
+                limits: self.limits,
+            });
+        }
         if raw.is_null() {
             return Err(ImageError::DecodeFailed(if message.is_empty() {
                 "imageio_source_create_bgra_at_index returned NULL".into()
@@ -250,7 +277,16 @@ impl ImageSource {
     }
 }
 
-crate::bridge::retained::imageio_retained!(ImageSource);
+impl Clone for ImageSource {
+    fn clone(&self) -> Self {
+        Self {
+            raw: bridge::retain(self.raw),
+            limits: self.limits,
+        }
+    }
+}
+
+crate::bridge::retained::imageio_retained!(ImageSource, drop_only);
 
 #[cfg(test)]
 mod tests {
