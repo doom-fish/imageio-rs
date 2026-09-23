@@ -6,6 +6,8 @@ GAPS: 0
 EXEMPT: 1
 COVERAGE_PCT: 100.00%
 
+`VERIFIED` means a symbol is reachable from Rust, including through the unsafe `raw-ffi` module; it does not mean the symbol has a safe wrapper. The property-key constants are only declared in `imageio::ffi` (the safe API takes the key strings), and seven functions have no safe wrapper at all (the four `*GetTypeID` functions, `CGImageSourceSetAllowableTypes`, `CGImageMetadataCopyTagMatchingImageProperty` and `CGImageMetadataSetValueMatchingImageProperty`). `COVERAGE_AUDIT_V2.md` lists the safe wrapper of every ImageIO function. This table was generated against MacOSX26.2.sdk and has not been regenerated for newer SDKs.
+
 ## Audit scope
 
 - SDK root: `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk`
@@ -50,18 +52,18 @@ COVERAGE_PCT: 100.00%
 | `CGImageSourceCreateIncremental` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceCreateIncremental` |
 | `CGImageSourceCreateThumbnailAtIndex` | function | `CGImageSource.h` | create_thumbnail<br>`ffi::CGImageSourceCreateThumbnailAtIndex` |
 | `CGImageSourceCreateWithData` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceCreateWithData` |
-| `CGImageSourceCreateWithDataProvider` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceCreateWithDataProvider` |
+| `CGImageSourceCreateWithDataProvider` | function | `CGImageSource.h` | `ImageSource::from_data_provider`<br>`ffi::CGImageSourceCreateWithDataProvider` |
 | `CGImageSourceCreateWithURL` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceCreateWithURL` |
 | `CGImageSourceGetCount` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetCount` |
 | `CGImageSourceGetPrimaryImageIndex` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetPrimaryImageIndex` |
 | `CGImageSourceGetStatus` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetStatus` |
 | `CGImageSourceGetStatusAtIndex` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetStatusAtIndex` |
 | `CGImageSourceGetType` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetType` |
-| `CGImageSourceGetTypeID` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceGetTypeID` |
+| `CGImageSourceGetTypeID` | function | `CGImageSource.h` | raw FFI only: `ffi::CGImageSourceGetTypeID` |
 | `CGImageSourceRemoveCacheAtIndex` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceRemoveCacheAtIndex` |
-| `CGImageSourceSetAllowableTypes` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceSetAllowableTypes` |
+| `CGImageSourceSetAllowableTypes` | function | `CGImageSource.h` | raw FFI only: `ffi::CGImageSourceSetAllowableTypes` |
 | `CGImageSourceUpdateData` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceUpdateData` |
-| `CGImageSourceUpdateDataProvider` | function | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::CGImageSourceUpdateDataProvider` |
+| `CGImageSourceUpdateDataProvider` | function | `CGImageSource.h` | `ImageSource::update_data_provider`<br>`ffi::CGImageSourceUpdateDataProvider` |
 | `kCGComputeHDRStats` | constant | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::kCGComputeHDRStats` |
 | `kCGImageSourceCreateThumbnailFromImageAlways` | constant | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::kCGImageSourceCreateThumbnailFromImageAlways` |
 | `kCGImageSourceCreateThumbnailFromImageIfAbsent` | constant | `CGImageSource.h` | source / image / thumbnail helpers<br>`ffi::kCGImageSourceCreateThumbnailFromImageIfAbsent` |
@@ -85,10 +87,10 @@ COVERAGE_PCT: 100.00%
 | `CGImageDestinationCopyImageSource` | function | `CGImageDestination.h` | ImageDestination::copy_image_source / copy_image_source<br>`ffi::CGImageDestinationCopyImageSource` |
 | `CGImageDestinationCopyTypeIdentifiers` | function | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::CGImageDestinationCopyTypeIdentifiers` |
 | `CGImageDestinationCreateWithData` | function | `CGImageDestination.h` | ImageDestination::to_data / encode_bgra_to_bytes<br>`ffi::CGImageDestinationCreateWithData` |
-| `CGImageDestinationCreateWithDataConsumer` | function | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::CGImageDestinationCreateWithDataConsumer` |
+| `CGImageDestinationCreateWithDataConsumer` | function | `CGImageDestination.h` | `ImageDestination::to_writer`<br>`ffi::CGImageDestinationCreateWithDataConsumer` |
 | `CGImageDestinationCreateWithURL` | function | `CGImageDestination.h` | ImageDestination::to_path / convert_format / copy_image_source<br>`ffi::CGImageDestinationCreateWithURL` |
 | `CGImageDestinationFinalize` | function | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::CGImageDestinationFinalize` |
-| `CGImageDestinationGetTypeID` | function | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::CGImageDestinationGetTypeID` |
+| `CGImageDestinationGetTypeID` | function | `CGImageDestination.h` | raw FFI only: `ffi::CGImageDestinationGetTypeID` |
 | `CGImageDestinationSetProperties` | function | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::CGImageDestinationSetProperties` |
 | `kCGImageDestinationBackgroundColor` | constant | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::kCGImageDestinationBackgroundColor` |
 | `kCGImageDestinationDateTime` | constant | `CGImageDestination.h` | destination / animated_png / heif / proraw helpers<br>`ffi::kCGImageDestinationDateTime` |
@@ -159,7 +161,7 @@ COVERAGE_PCT: 100.00%
 | `kCGImageMetadataTypeString` | enum case | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataTypeString` |
 | `kCGImageMetadataTypeStructure` | enum case | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataTypeStructure` |
 | `CGImageMetadataCopyStringValueWithPath` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCopyStringValueWithPath` |
-| `CGImageMetadataCopyTagMatchingImageProperty` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCopyTagMatchingImageProperty` |
+| `CGImageMetadataCopyTagMatchingImageProperty` | function | `CGImageMetadata.h` | raw FFI only: `ffi::CGImageMetadataCopyTagMatchingImageProperty` |
 | `CGImageMetadataCopyTags` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCopyTags` |
 | `CGImageMetadataCopyTagWithPath` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCopyTagWithPath` |
 | `CGImageMetadataCreateFromXMPData` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCreateFromXMPData` |
@@ -167,11 +169,11 @@ COVERAGE_PCT: 100.00%
 | `CGImageMetadataCreateMutableCopy` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCreateMutableCopy` |
 | `CGImageMetadataCreateXMPData` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataCreateXMPData` |
 | `CGImageMetadataEnumerateTagsUsingBlock` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataEnumerateTagsUsingBlock` |
-| `CGImageMetadataGetTypeID` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataGetTypeID` |
+| `CGImageMetadataGetTypeID` | function | `CGImageMetadata.h` | raw FFI only: `ffi::CGImageMetadataGetTypeID` |
 | `CGImageMetadataRegisterNamespaceForPrefix` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataRegisterNamespaceForPrefix` |
 | `CGImageMetadataRemoveTagWithPath` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataRemoveTagWithPath` |
 | `CGImageMetadataSetTagWithPath` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataSetTagWithPath` |
-| `CGImageMetadataSetValueMatchingImageProperty` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataSetValueMatchingImageProperty` |
+| `CGImageMetadataSetValueMatchingImageProperty` | function | `CGImageMetadata.h` | raw FFI only: `ffi::CGImageMetadataSetValueMatchingImageProperty` |
 | `CGImageMetadataSetValueWithPath` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataSetValueWithPath` |
 | `CGImageMetadataTagCopyName` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagCopyName` |
 | `CGImageMetadataTagCopyNamespace` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagCopyNamespace` |
@@ -180,7 +182,7 @@ COVERAGE_PCT: 100.00%
 | `CGImageMetadataTagCopyValue` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagCopyValue` |
 | `CGImageMetadataTagCreate` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagCreate` |
 | `CGImageMetadataTagGetType` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagGetType` |
-| `CGImageMetadataTagGetTypeID` | function | `CGImageMetadata.h` | metadata helpers<br>`ffi::CGImageMetadataTagGetTypeID` |
+| `CGImageMetadataTagGetTypeID` | function | `CGImageMetadata.h` | raw FFI only: `ffi::CGImageMetadataTagGetTypeID` |
 | `kCFErrorDomainCGImageMetadata` | constant | `CGImageMetadata.h` | Metadata::error_domain / metadata helpers<br>`ffi::kCFErrorDomainCGImageMetadata` |
 | `kCGImageMetadataEnumerateRecursively` | constant | `CGImageMetadata.h` | MetadataEnumerateOptions::recursive / Metadata::enumerate_tags_with_options<br>`ffi::kCGImageMetadataEnumerateRecursively` |
 | `kCGImageMetadataNamespaceDublinCore` | constant | `CGImageMetadata.h` | metadata helpers<br>`ffi::kCGImageMetadataNamespaceDublinCore` |

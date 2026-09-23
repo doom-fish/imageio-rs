@@ -2,7 +2,12 @@
 
 Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentation/imageio) framework on macOS.
 
-> **Status:** `imageio` `0.11.0` follows the audited bridge pattern for the C-only `ImageIO.framework`.
+```toml
+[dependencies]
+imageio = "0.12"
+```
+
+> **Status:** `imageio` follows the audited bridge pattern for the C-only `ImageIO.framework`.
 >
 > - the default build compiles a tiny SwiftPM bridge from `swift-bridge/`
 > - ergonomic safe modules cover Source, Destination, Properties, Metadata, AuxiliaryData, ColorSync, AnimatedPNG, HEIF, `ProRAW`, and Thumbnail workflows
@@ -14,6 +19,7 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 
 - macOS 13+
 - Xcode command line tools / a working Swift toolchain
+- Rust 1.82+
 
 ## Safe API areas
 
@@ -39,8 +45,8 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 - `encode_bgra_to_bytes(bgra, width, height, format)`
 - `convert_format(input, output, format)`
 - `copy_image_source(input, output, format)`
-- `ImageSource` + `SourceStatus` for file/data/incremental sources
-- `ImageDestination` for file/data encodes, metadata, and auxiliary data
+- `ImageSource` + `SourceStatus` for file/data/incremental sources; `ImageSourceOptions` sets the type-identifier hint and `ShouldCache`, and `DataProvider` plus `ImageSource::from_data_provider` / `update_data_provider` cover `CGDataProvider` sources
+- `ImageDestination` for file/data encodes, metadata, and auxiliary data; `ImageDestination::to_writer` streams the encoded bytes to any `Write + Send + 'static` value
 - `ImageProperties` / `MutableProperties` plus typed APNG / HEIF / `ProRAW` / color helpers
 - `Metadata`, `MetadataEnumerateOptions`, `MutableMetadata`, and `MetadataTag` for XMP workflows; mutable clones and `into_metadata()` produce independent trees
 - `AuxiliaryDataInfo::set_color_space` / `color_space` retain the actual auxiliary `CGColorSpace`
@@ -49,7 +55,11 @@ Safe Rust bindings for Apple's [ImageIO](https://developer.apple.com/documentati
 
 `CGImageDestinationCopyImageSource` is terminal: `ImageDestination::copy_image_source` writes the output and completes the destination without a later `finalize()`. Subsequent add/finalize calls return `ImageError::EncodeFailed`.
 
-The animation helpers are synchronous and must be invoked on the process main thread. They return after finite native playback completes or after the callback returns `false`.
+The animation helpers are synchronous and must be invoked on the process main thread. They return after finite native playback completes, when `ImageIO` ends playback early (for example a single-frame image), or after the callback returns `false`. `AnimationOptions::timeout` bounds the wait (60 seconds by default, `None` waits for playback to end); a timed-out call returns `ImageError::Timeout`, and no callback runs after the call returns.
+
+## Decode limits
+
+Every path that decodes a whole image (`ImageSource::decode_image_at_index`, `decode_bgra`, `decode_bgra_from_bytes`, `create_thumbnail`, `ImageDestination::add_image_from_source` and `convert_format`, and each frame of `animate_image`) is bounded by `DecodeLimits`. The defaults allow 16384 pixels per side and 256 MiB of BGRA output (8192x8192). The dimensions a file declares are checked before anything is decoded, so a small file that claims to be 40000x40000 pixels fails with `ImageError::LimitExceeded` instead of allocating gigabytes. Raise or lower the limits per source with `ImageSource::set_decode_limits`, or per animation with `AnimationOptions::limits`. Thumbnails are scaled down to fit the limits rather than refused. A decode still needs about twice the output size while the bridge's buffer is copied into the returned `Vec`.
 
 ## Quick start
 

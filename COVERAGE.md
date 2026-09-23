@@ -1,10 +1,12 @@
 # COVERAGE
 
-Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers` for `imageio` `0.11.0`.
+Audited against `/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk/System/Library/Frameworks/ImageIO.framework/Headers`; updated for `imageio` `0.12.0` without regenerating the rows.
 
 Legend: `✅ implemented`, `🟡 partial`, `⏭️ skipped`.
 
-The default crate surface goes through the Swift bridge and area-focused safe Rust modules. The full audited C row set remains available behind the `raw-ffi` feature as `imageio::ffi`. This macOS SDK audit produced no skipped rows.
+The default crate surface goes through the Swift bridge and area-focused safe Rust modules. The full audited C row set remains available behind the `raw-ffi` feature as `imageio::ffi`. For constants, `✅ implemented` means the key is declared in `imageio::ffi` and can be passed as a string to the safe property API; it is not a typed safe wrapper. Seven functions are `⏭️ skipped` in the safe API and only reachable through `imageio::ffi`. `COVERAGE_AUDIT_V2.md` lists the safe wrapper of every ImageIO function.
+
+Full decodes (`ImageSource::decode_image_at_index`, `create_thumbnail`, `ImageDestination::add_image_from_source` and the animation helpers) are bounded by `DecodeLimits`; see the README.
 
 ## Logical-area summary
 
@@ -62,9 +64,9 @@ Safe coverage for this header lives in `source`, `image`, `thumbnail`, `auxiliar
 | `CGImageSourceGetStatus` | ✅ implemented |
 | `CGImageSourceGetStatusAtIndex` | ✅ implemented |
 | `CGImageSourceGetType` | ✅ implemented |
-| `CGImageSourceGetTypeID` | ✅ implemented |
+| `CGImageSourceGetTypeID` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageSourceRemoveCacheAtIndex` | ✅ implemented |
-| `CGImageSourceSetAllowableTypes` | ✅ implemented |
+| `CGImageSourceSetAllowableTypes` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageSourceUpdateData` | ✅ implemented |
 | `CGImageSourceUpdateDataProvider` | ✅ implemented |
 
@@ -137,7 +139,7 @@ Safe coverage for this header lives in `destination`, `image`, `auxiliary_data`,
 | `CGImageDestinationCreateWithDataConsumer` | ✅ implemented |
 | `CGImageDestinationCreateWithURL` | ✅ implemented |
 | `CGImageDestinationFinalize` | ✅ implemented |
-| `CGImageDestinationGetTypeID` | ✅ implemented |
+| `CGImageDestinationGetTypeID` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageDestinationSetProperties` | ✅ implemented |
 
 ### Constants
@@ -257,7 +259,7 @@ Safe coverage for this header lives in `metadata`; every row below is also avail
 | API | Status |
 | --- | --- |
 | `CGImageMetadataCopyStringValueWithPath` | ✅ implemented |
-| `CGImageMetadataCopyTagMatchingImageProperty` | ✅ implemented |
+| `CGImageMetadataCopyTagMatchingImageProperty` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageMetadataCopyTagWithPath` | ✅ implemented |
 | `CGImageMetadataCopyTags` | ✅ implemented |
 | `CGImageMetadataCreateFromXMPData` | ✅ implemented |
@@ -265,11 +267,11 @@ Safe coverage for this header lives in `metadata`; every row below is also avail
 | `CGImageMetadataCreateMutableCopy` | ✅ implemented |
 | `CGImageMetadataCreateXMPData` | ✅ implemented |
 | `CGImageMetadataEnumerateTagsUsingBlock` | ✅ implemented |
-| `CGImageMetadataGetTypeID` | ✅ implemented |
+| `CGImageMetadataGetTypeID` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageMetadataRegisterNamespaceForPrefix` | ✅ implemented |
 | `CGImageMetadataRemoveTagWithPath` | ✅ implemented |
 | `CGImageMetadataSetTagWithPath` | ✅ implemented |
-| `CGImageMetadataSetValueMatchingImageProperty` | ✅ implemented |
+| `CGImageMetadataSetValueMatchingImageProperty` | ⏭️ skipped (raw `ffi` only) |
 | `CGImageMetadataSetValueWithPath` | ✅ implemented |
 | `CGImageMetadataTagCopyName` | ✅ implemented |
 | `CGImageMetadataTagCopyNamespace` | ✅ implemented |
@@ -278,7 +280,7 @@ Safe coverage for this header lives in `metadata`; every row below is also avail
 | `CGImageMetadataTagCopyValue` | ✅ implemented |
 | `CGImageMetadataTagCreate` | ✅ implemented |
 | `CGImageMetadataTagGetType` | ✅ implemented |
-| `CGImageMetadataTagGetTypeID` | ✅ implemented |
+| `CGImageMetadataTagGetTypeID` | ⏭️ skipped (raw `ffi` only) |
 
 ### Enum types
 
