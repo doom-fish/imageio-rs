@@ -2,6 +2,9 @@ import Foundation
 import ImageIO
 
 private func heifDictionary(from raw: UnsafeMutableRawPointer?) -> NSDictionary? {
+    guard #available(macOS 13.0, *) else {
+        return nil
+    }
     guard let raw else {
         return nil
     }

@@ -17,9 +17,11 @@ imageio = "0.12"
 
 ## Requirements
 
-- macOS 13+
+- macOS 12.0+
 - Xcode command line tools / a working Swift toolchain
 - Rust 1.82+
+
+`kCGImagePropertyHEIFDictionary` needs macOS 13.0. On macOS 12, the HEIF dictionary query returns `None`.
 
 ## Safe API areas
 
