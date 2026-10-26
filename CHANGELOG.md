@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-10-26
+
+### Changed
+
+- Select all PNG filters and disable interlace for straight pixel buffers.
+- Omit ancillary PNG metadata except colour and transparency information.
+
 ## [0.12.3] - 2026-10-26
 
 ### Added

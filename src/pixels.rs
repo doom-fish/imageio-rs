@@ -140,5 +140,32 @@ pub fn encode_pixels_to_bytes(
     if raw.is_null() {
         return Err(ImageError::EncodeFailed(message));
     }
-    Ok(bridge::copy_data(raw))
+    let mut bytes = bridge::copy_data(raw);
+    if format == ImageFormat::Png {
+        if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+            return Err(ImageError::EncodeFailed("invalid PNG output".into()));
+        }
+        let (mut read, mut write) = (8_usize, 8_usize);
+        while read < bytes.len() {
+            let Some(header) = bytes.get(read..).and_then(|tail| tail.get(..8)) else {
+                return Err(ImageError::EncodeFailed("invalid PNG chunk".into()));
+            };
+            let length = u32::from_be_bytes(header[..4].try_into().unwrap()) as usize;
+            let kind: [u8; 4] = header[4..8].try_into().unwrap();
+            let end = read
+                .checked_add(12)
+                .and_then(|offset| offset.checked_add(length))
+                .filter(|end| *end <= bytes.len())
+                .ok_or_else(|| ImageError::EncodeFailed("invalid PNG chunk size".into()))?;
+            if kind[0].is_ascii_uppercase()
+                || matches!(&kind, b"tRNS" | b"sRGB" | b"cICP" | b"gAMA" | b"cHRM")
+            {
+                bytes.copy_within(read..end, write);
+                write += end - read;
+            }
+            read = end;
+        }
+        bytes.truncate(write);
+    }
+    Ok(bytes)
 }

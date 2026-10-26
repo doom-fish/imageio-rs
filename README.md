@@ -54,6 +54,9 @@ The source decode limits also apply to this path.
 `encode_pixels_to_bytes` accepts RGB8 or straight RGBA8 pixels with an explicit `PixelFormat`.
 The PNG path preserves each input sample without a premultiplication step.
 The existing BGRA helpers retain their premultiplied representation.
+Straight-buffer PNG encode enables adaptive filters and disables interlace.
+It retains colour and transparency chunks but omits other ancillary metadata.
+`ImageIO` controls the lossless compression level. Its lossy quality option does not change PNG compression.
 
 ## High-level helpers
 

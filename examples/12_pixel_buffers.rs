@@ -38,6 +38,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ImageFormat::Png,
             )?,
         )?;
+        let rgb: Vec<_> = decoded
+            .rgba
+            .chunks_exact(4)
+            .flat_map(|pixel| pixel[..3].iter().copied())
+            .collect();
+        let png = encode_pixels_to_bytes(
+            &rgb,
+            decoded.width,
+            decoded.height,
+            PixelFormat::Rgb8,
+            ImageFormat::Png,
+        )?;
+        println!("RGB8 PNG bytes: {}", png.len());
+        std::fs::write(format!("{path}.rgb.png"), png)?;
     }
     Ok(())
 }

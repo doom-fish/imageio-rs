@@ -158,7 +158,13 @@ public func imageioEncodePixels(
         writeCString("could not create the image destination", into: errorBuffer, capacity: errorBufferSize)
         return nil
     }
-    CGImageDestinationAddImage(destination, image, nil)
+    let properties: CFDictionary? = String(cString: typeIdentifier) == "public.png"
+        ? [kCGImagePropertyPNGDictionary: [
+            kCGImagePropertyPNGCompressionFilter: 248,
+            kCGImagePropertyPNGInterlaceType: 0
+        ]] as CFDictionary
+        : nil
+    CGImageDestinationAddImage(destination, image, properties)
     guard CGImageDestinationFinalize(destination) else {
         writeCString("could not finalize the image destination", into: errorBuffer, capacity: errorBufferSize)
         return nil
