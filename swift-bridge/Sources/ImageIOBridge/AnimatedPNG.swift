@@ -1,7 +1,7 @@
 import Foundation
 import ImageIO
 
-typealias ImageAnimationCallback = @convention(c) (Int, Int, Int, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
+public typealias ImageAnimationCallback = @convention(c) (Int, Int, Int, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
 
 private let animationSucceeded: Int32 = 0
 private let animationFailed: Int32 = 1
@@ -279,7 +279,7 @@ private func runAnimation(
 }
 
 @_cdecl("imageio_animate_image_at_path")
-func imageioAnimateImageAtPath(
+public func imageioAnimateImageAtPath(
     _ path: UnsafePointer<CChar>?,
     _ userData: UnsafeMutableRawPointer?,
     _ callback: ImageAnimationCallback?,
@@ -321,7 +321,7 @@ func imageioAnimateImageAtPath(
 }
 
 @_cdecl("imageio_animate_image_data")
-func imageioAnimateImageData(
+public func imageioAnimateImageData(
     _ bytes: UnsafePointer<UInt8>?,
     _ length: Int,
     _ userData: UnsafeMutableRawPointer?,

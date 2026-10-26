@@ -1,7 +1,7 @@
 import Foundation
 import ImageIO
 
-typealias MetadataEnumerateCallback = @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
+public typealias MetadataEnumerateCallback = @convention(c) (UnsafeMutableRawPointer?, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Bool
 
 @_cdecl("imageio_metadata_create_from_xmp_data")
 public func imageioMetadataCreateFromXmpData(
@@ -152,7 +152,7 @@ public func imageioMetadataCopyStringValueWithPath(
 }
 
 @_cdecl("imageio_metadata_enumerate_tags")
-func imageioMetadataEnumerateTags(
+public func imageioMetadataEnumerateTags(
     _ raw: UnsafeMutableRawPointer?,
     _ rootPath: UnsafePointer<CChar>?,
     _ recursive: Bool,
