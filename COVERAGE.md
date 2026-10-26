@@ -10,6 +10,11 @@ Full decodes (`ImageSource::decode_image_at_index`, `create_thumbnail`, `ImageDe
 
 ## Logical-area summary
 
+The `pixels` module adds sample-preserving RGB8 and straight RGBA8 buffers.
+It uses `CGImageSourceCreateImageAtIndex`, `CGImage` data providers, and `CGImageDestinationAddImage`.
+It does not add an ICC transform or change the existing premultiplied BGRA helpers.
+The `12_pixel_buffers` example checks transparent colour samples and both PNG input pixel formats.
+
 | Area | Status | Rust modules | Swift bridge | Example | Test |
 | --- | --- | --- | --- | --- | --- |
 | Source | ✅ implemented | `source`, `image` | `Source.swift` | `01_source_overview` | `source_tests.rs` |

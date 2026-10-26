@@ -24,6 +24,7 @@ pub mod heif;
 pub mod image;
 pub mod limits;
 pub mod metadata;
+pub mod pixels;
 pub mod properties;
 pub mod proraw;
 pub mod source;
@@ -43,6 +44,7 @@ pub use limits::DecodeLimits;
 pub use metadata::{
     Metadata, MetadataEnumerateOptions, MetadataTag, MetadataType, MutableMetadata,
 };
+pub use pixels::{decode_rgba8_from_bytes, encode_pixels_to_bytes, DecodedRgbaImage, PixelFormat};
 pub use properties::{ImageProperties, MutableProperties};
 pub use proraw::{ProRawBuilder, ProRawProperties};
 pub use source::{DataProvider, ImageSource, ImageSourceOptions, SourceStatus};

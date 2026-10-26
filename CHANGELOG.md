@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-10-26
+
+### Added
+
+- Add straight RGBA8 decode that preserves encoded colour samples and transparent colour values.
+- Add RGB8 and straight RGBA8 encode without a premultiplication step.
+- Add a pixel-buffer probe for lossless PNG output.
+
 ## [0.12.2] - 2026-10-26
 
 ### Fixed

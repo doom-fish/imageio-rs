@@ -38,6 +38,22 @@ imageio = "0.12"
 | `ProRAW` | `proraw` | `ProRAW.swift` | `09_proraw` |
 | Thumbnail | `thumbnail` | `Thumbnail.swift` | `10_thumbnail` |
 | Async incremental decode | `async_api` | Rust-only | `11_async_incremental_decoder` |
+| Straight pixel buffers | `pixels` | `Pixels.swift` | `12_pixel_buffers` |
+
+## Straight pixel buffers
+
+`ImageSource::decode_rgba8_at_index` and `decode_rgba8_from_bytes` preserve the encoded RGB or grayscale colour samples.
+They return tightly packed, straight RGBA8 pixels.
+They do not apply an ICC profile, a gamma transform, or an orientation transform.
+They preserve colour values in transparent pixels.
+They support integer samples with eight or sixteen bits per component.
+Sixteen-bit samples use rounded conversion to eight bits.
+Unsupported pixel layouts return an error instead of a colour conversion.
+The source decode limits also apply to this path.
+
+`encode_pixels_to_bytes` accepts RGB8 or straight RGBA8 pixels with an explicit `PixelFormat`.
+The PNG path preserves each input sample without a premultiplication step.
+The existing BGRA helpers retain their premultiplied representation.
 
 ## High-level helpers
 
