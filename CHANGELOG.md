@@ -259,6 +259,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package metadata now includes `examples/**/*` and `tests/**/*` in published
   crates.
 
+## [0.2.0] - 2026-05-16
+
+### Added
+
+- Add in-memory image encoding and decoding without intermediate files.
+
 ## [0.1.0] - Initial release
 
 ### Added
