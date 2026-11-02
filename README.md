@@ -61,6 +61,7 @@ It retains colour and transparency chunks but omits other ancillary metadata.
 ## High-level helpers
 
 - `read_metadata(path)`
+- `read_metadata_from_source(source)`
 - `decode_bgra(path)`
 - `decode_bgra_from_bytes(bytes)`
 - `encode_bgra_to_bytes(bgra, width, height, format)`
