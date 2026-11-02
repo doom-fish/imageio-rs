@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.5] - 2026-11-02
+
 ### Added
 
 - Make `read_metadata_from_source` public. It reads the `ImageMetadata` of an `ImageSource` that you already have, for example from `ImageSource::from_bytes` (#1).

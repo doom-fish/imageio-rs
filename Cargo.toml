@@ -1,6 +1,6 @@
 [package]
 name = "imageio"
-version = "0.12.4"
+version = "0.12.5"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/imageio-rs"
