@@ -43,8 +43,8 @@ name = "imageio"
 crate-type = ["lib"]
 
 [dependencies]
-apple-cf = { path = "../apple-cf-rs", version = ">=0.11, <0.12", default-features = false, features = ["cg"] }
-doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.4.1, <0.5", default-features = false }
+apple-cf = { version = ">=0.11, <0.12", default-features = false, features = ["cg"] }
+doom-fish-utils = { version = ">=0.4.1, <0.5", default-features = false }
 
 [dev-dependencies]
 pollster = "0.3"
