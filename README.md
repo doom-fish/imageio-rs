@@ -22,6 +22,7 @@ imageio = "0.12"
 - Rust 1.82+
 
 `kCGImagePropertyHEIFDictionary` needs macOS 13.0. On macOS 12, the HEIF dictionary query returns `None`.
+Programs that link directly to `ffi::kCGImageSourceAllowableTypes` or `ffi::kCGImageSourcePrioritizeQuality` require macOS 27 or later.
 
 ## Safe API areas
 
