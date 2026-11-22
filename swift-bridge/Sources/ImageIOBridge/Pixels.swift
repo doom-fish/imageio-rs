@@ -119,6 +119,27 @@ public func imageioSourceCreateRgba8AtIndex(
     return retainBox(pixels)
 }
 
+private func pngRowFilters(_ bytes: UnsafePointer<UInt8>, width: Int, height: Int, channels: Int) -> Int32 {
+    let flat = IMAGEIO_PNG_FILTER_NONE | IMAGEIO_PNG_FILTER_UP
+    let adaptive = flat | IMAGEIO_PNG_FILTER_SUB | IMAGEIO_PNG_FILTER_AVG | IMAGEIO_PNG_FILTER_PAETH
+    guard width > 1 else { return adaptive }
+    let stepX = (width - 2) / 64 + 1
+    let stepY = (height - 1) / 64 + 1
+    var samples = 0
+    var repeated = 0
+    for (row, y) in stride(from: 0, to: height, by: stepY).enumerated() {
+        let line = bytes + y * width * channels
+        for x in stride(from: 1 + row % stepX, to: width, by: stepX) {
+            let pixel = line + x * channels
+            samples += 1
+            if memcmp(pixel, pixel - channels, channels) == 0 {
+                repeated += 1
+            }
+        }
+    }
+    return repeated * 4 >= samples * 3 ? flat : adaptive
+}
+
 @_cdecl("imageio_encode_pixels")
 public func imageioEncodePixels(
     _ bytes: UnsafePointer<UInt8>?,
@@ -160,7 +181,7 @@ public func imageioEncodePixels(
     }
     let properties: CFDictionary? = String(cString: typeIdentifier) == "public.png"
         ? [kCGImagePropertyPNGDictionary: [
-            kCGImagePropertyPNGCompressionFilter: 248,
+            kCGImagePropertyPNGCompressionFilter: pngRowFilters(bytes, width: width, height: height, channels: channels),
             kCGImagePropertyPNGInterlaceType: 0
         ]] as CFDictionary
         : nil
