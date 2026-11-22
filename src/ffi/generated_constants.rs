@@ -4,9 +4,11 @@ unsafe extern "C" {
 
     // CGImageSource.h
     pub static kCGImageSourceTypeIdentifierHint: CFStringRef;
+    pub static kCGImageSourceAllowableTypes: CFStringRef;
     pub static kCGImageSourceShouldCache: CFStringRef;
     pub static kCGImageSourceShouldCacheImmediately: CFStringRef;
     pub static kCGImageSourceShouldAllowFloat: CFStringRef;
+    pub static kCGImageSourcePrioritizeQuality: CFStringRef;
     pub static kCGImageSourceCreateThumbnailFromImageIfAbsent: CFStringRef;
     pub static kCGImageSourceCreateThumbnailFromImageAlways: CFStringRef;
     pub static kCGImageSourceThumbnailMaxPixelSize: CFStringRef;

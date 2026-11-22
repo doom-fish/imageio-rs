@@ -61,19 +61,18 @@ fn extract_header_constants(source: &str) -> BTreeSet<String> {
 }
 
 fn extract_header_enums(source: &str) -> BTreeMap<String, BTreeSet<String>> {
+    let comments = regex_lite::Regex::new(r"(?s:/\*.*?\*/)|//[^\r\n]*").unwrap();
+    let declarations = comments.replace_all(source, " ");
     let re = regex_lite::Regex::new(r"typedef\s+CF_ENUM\([^,]+,\s*([A-Za-z0-9_]+)\)\s*\{([^}]*)\}")
         .unwrap();
-    re.captures_iter(source)
+    re.captures_iter(&declarations)
         .map(|capture| {
             let enum_name = capture[1].to_string();
             let cases = capture[2]
-                .lines()
-                .map(str::trim)
-                .filter(|line| !line.is_empty() && !line.starts_with("//"))
-                .map(|line| line.split("/*").next().unwrap().trim())
-                .map(|line| line.trim_end_matches(','))
-                .map(|line| line.split('=').next().unwrap().trim().to_string())
-                .filter(|line| !line.is_empty())
+                .split(',')
+                .map(|case| case.split('=').next().unwrap().trim())
+                .filter(|case| !case.is_empty())
+                .map(str::to_owned)
                 .collect();
             (enum_name, cases)
         })
